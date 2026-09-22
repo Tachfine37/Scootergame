@@ -45,6 +45,8 @@ jobs:
 
       - name: Configurer Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Préparer le site
         uses: actions/upload-pages-artifact@v3
