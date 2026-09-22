@@ -6,9 +6,19 @@ Dépôt privé : https://github.com/Tachfine37/Scootergame
 
 Dans l'application **Scootergame** de Codemagic, sélectionner la configuration **codemagic.yaml**, la branche `main`, puis le workflow **iOS — vérifications et compilation sans signature** (`ios-check`).
 
-Le workflow génère les dossiers natifs manquants avec Flutter 3.47.5, vérifie le code, exécute les tests et compile iOS ainsi que la version web. Il s'arrête si une vérification échoue.
+Le workflow génère les dossiers natifs manquants avec Flutter 3.47.5, vérifie le code, exécute les tests et compile iOS ainsi que la version web. Il produit aussi un fichier `.app` pour **App Preview**, le simulateur iPhone gratuit de Codemagic. Il s'arrête si une vérification échoue.
 
 `ios-unsigned.zip` n'est **pas installable sur un iPhone physique**. Il sert à vérifier la compilation avant de configurer la signature. `web-preview.zip` contient le build web à servir avec un serveur HTTP.
+
+### Tester gratuitement dans Codemagic
+
+Après la fin du workflow `ios-check` :
+
+1. Ouvrir la page du build et toucher **Quick launch** à côté de l'artefact `Runner.app`.
+2. Activer les **100 minutes gratuites** d'App Preview si Codemagic le demande.
+3. Choisir un modèle d'iPhone et démarrer la session. Le jeu s'exécute dans un simulateur iOS dans le navigateur, sans signature Apple et sans abonnement à 99 $.
+
+Cette méthode teste l'application iOS dans le simulateur de Codemagic. Pour jouer directement sur un iPhone physique sans abonnement Apple, utiliser la version web hébergée ; une installation native distribuée par Codemagic/TestFlight exige la signature Apple payante.
 
 ## 2. Configurer Apple une seule fois
 
