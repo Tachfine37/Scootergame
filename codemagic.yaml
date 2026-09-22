@@ -24,6 +24,8 @@ workflows:
         script: flutter test --reporter expanded
       - name: Compiler iOS sans signature
         script: flutter build ios --release --no-codesign
+      - name: Compiler pour App Preview
+        script: flutter build ios --debug --simulator
       - name: Compiler la démo web
         script: flutter build web --release --no-web-resources-cdn
       - name: Archiver les résultats
@@ -33,6 +35,9 @@ workflows:
           ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/deliverables/ios-unsigned.zip
           ditto -c -k --keepParent build/web build/deliverables/web-preview.zip
     artifacts:
+      # The uncompressed .app is detected by Codemagic App Preview and enables
+      # the free "Quick launch" iPhone simulator button on the build page.
+      - build/ios/iphonesimulator/*.app
       - build/deliverables/*.zip
       - /tmp/xcodebuild_logs/*.log
 
