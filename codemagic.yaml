@@ -1,0 +1,88 @@
+# Launch manually from Codemagic. No automatic upload on every push.
+# Repository: https://github.com/Tachfine37/Scootergame
+workflows:
+  ios-check:
+    name: iOS — vérifications et compilation sans signature
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      flutter: 3.47.5
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: com.tachfine37.scootergame
+    scripts:
+      - name: Préparer le projet iOS
+        script: |
+          set -euo pipefail
+          python3 tool/bootstrap_platforms.py --platforms ios,web
+          python3 tool/configure_ios.py
+          flutter pub get
+      - name: Analyser le code
+        script: flutter analyze
+      - name: Exécuter les tests
+        script: flutter test --reporter expanded
+      - name: Compiler iOS sans signature
+        script: flutter build ios --release --no-codesign
+      - name: Compiler la démo web
+        script: flutter build web --release --no-web-resources-cdn
+      - name: Archiver les résultats
+        script: |
+          set -euo pipefail
+          mkdir -p build/deliverables
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/deliverables/ios-unsigned.zip
+          ditto -c -k --keepParent build/web build/deliverables/web-preview.zip
+    artifacts:
+      - build/deliverables/*.zip
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    name: iPhone — TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Create/select this named integration in Codemagic Team settings.
+      app_store_connect: ca-passe-apple
+    environment:
+      flutter: 3.47.5
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tachfine37.scootergame
+      vars:
+        # Keep this and ios_signing.bundle_identifier identical.
+        BUNDLE_ID: com.tachfine37.scootergame
+    scripts:
+      - name: Préparer le projet iOS
+        script: |
+          set -euo pipefail
+          python3 tool/bootstrap_platforms.py --platforms ios
+          python3 tool/configure_ios.py
+          flutter pub get
+      - name: Analyser le code
+        script: flutter analyze
+      - name: Exécuter les tests
+        script: flutter test --reporter expanded
+      - name: Appliquer la signature Apple
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles
+      - name: Construire le fichier IPA
+        script: |
+          set -euo pipefail
+          flutter build ipa --release \
+            --build-number="$((PROJECT_BUILD_NUMBER + 1))" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Upload to App Store Connect; select your own internal tester group there.
+        # No external beta review or public App Store submission is requested.
+        submit_to_testflight: false
+        submit_to_app_store: false
+
