@@ -315,14 +315,18 @@ class DeliveryModel {
       crossing.cars.removeWhere((car) => car.x.abs() > 1.65);
       if (!crossing.resolved && oldZ >= playerZ && crossing.z <= playerZ) {
         crossing.resolved = true;
-        if (crossing.phase == TrafficPhase.red) {
+        if (crossing.phase == TrafficPhase.red && invulnerability == 0) {
           final carHit = crossing.cars.any((car) => (car.x - x).abs() < .38);
-          if (carHit) {
-            _hit(ItemKind.car);
-            message = 'Voiture au carrefour !';
-          } else {
-            message = 'Feu rouge franchi de justesse !';
-            eventTime = 1.2;
+          final protected = shield;
+          final before = cargo;
+          _hit(ItemKind.car);
+          if (!protected) {
+            final fallen = before - cargo;
+            message = fallen == 0
+                ? (carHit ? 'Voiture au carrefour !' : 'Feu rouge grillé !')
+                : carHit
+                ? 'Voiture au carrefour ! −$fallen colis'
+                : 'Feu rouge grillé ! −$fallen colis';
           }
         }
       }
