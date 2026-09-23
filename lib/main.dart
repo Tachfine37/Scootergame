@@ -58,6 +58,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   final _focus = FocusNode(debugLabel: 'delivery-controls');
   bool _left = false;
   bool _right = false;
+  bool _brake = false;
 
   @override
   void initState() {
@@ -88,6 +89,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     } else if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
         event.logicalKey == LogicalKeyboardKey.keyD) {
       _right = down;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.keyS) {
+      _brake = down;
+      game.setBraking(_brake);
+      return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.escape ||
         event.logicalKey == LogicalKeyboardKey.space) {
       if (event is KeyDownEvent) {
@@ -108,7 +114,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   }
 
   void _start() {
-    _left = _right = false;
+    _left = _right = _brake = false;
     game.startRun();
     _focus.requestFocus();
   }
@@ -124,8 +130,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           onKeyEvent: _onKey,
           onFocusChange: (focused) {
             if (!focused) {
-              _left = _right = false;
+              _left = _right = _brake = false;
               game.steering = 0;
+              game.setBraking(false);
             }
           },
           child: LayoutBuilder(
@@ -280,7 +287,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         if (model.running) ...[
           Positioned(
-            top: 220 * scale,
+            top: 272 * scale,
             left: 20 * scale,
             right: 20 * scale,
             child: IgnorePointer(
@@ -318,38 +325,24 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _steerButton(-1, scale),
-                IgnorePointer(
-                  child: Column(
-                    children: [
-                      Text(
-                        model.shield
-                            ? 'BOUCLIER ACTIF'
-                            : model.magnetTime > 0
-                            ? 'AIMANT · ${model.magnetTime.ceil()} s'
-                            : model.cargo >= 10 && model.stackSway.abs() > .12
-                            ? 'ÇA BALANCE !'
-                            : model.cargo >= 10
-                            ? 'PILE LOURDE'
-                            : 'GARDE LE CAP',
-                        style: TextStyle(
-                          color: cream,
-                          fontSize: 10 * scale,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.8,
-                        ),
+                Column(
+                  children: [
+                    Text(
+                      model.cargo >= 6
+                          ? model.balanceStress > .5
+                                ? 'PILE INSTABLE'
+                                : 'VIRAGES DOUX'
+                          : 'GARDE LE CAP',
+                      style: TextStyle(
+                        color: cream,
+                        fontSize: 9 * scale,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
                       ),
-                      SizedBox(height: 3 * scale),
-                      Text(
-                        model.cargo >= 10
-                            ? 'Tourne en douceur'
-                            : 'Glisse pour conduire',
-                        style: TextStyle(
-                          color: cream.withValues(alpha: .8),
-                          fontSize: 11 * scale,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: 4 * scale),
+                    _brakeButton(scale),
+                  ],
                 ),
                 _steerButton(1, scale),
               ],
@@ -436,7 +429,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           _primaryButton('C’est parti', Icons.arrow_forward_rounded, _start, s),
           SizedBox(height: 10 * s),
           Text(
-            'Glisse sur la route ou utilise les flèches ← →',
+            'Flèches ← → pour conduire · FREIN au feu rouge',
             style: TextStyle(
               color: cream,
               fontSize: 11 * s,
@@ -617,8 +610,73 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           color: pine,
         ),
       ),
+      if (game.model.cargo >= 6) ...[
+        SizedBox(height: 5 * s),
+        Row(
+          children: [
+            Text(
+              'ÉQUILIBRE',
+              style: TextStyle(
+                fontSize: 9 * s,
+                fontWeight: FontWeight.w800,
+                color: cream,
+              ),
+            ),
+            SizedBox(width: 8 * s),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: (game.model.balanceStress / .85).clamp(0.0, 1.0),
+                minHeight: 5 * s,
+                backgroundColor: cream.withValues(alpha: .4),
+                color: coral,
+              ),
+            ),
+          ],
+        ),
+      ],
+      if (game.model.upcomingCrossing != null &&
+          game.model.upcomingCrossing!.z < 100)
+        _trafficStatus(game.model.upcomingCrossing!, s),
     ],
   );
+
+  Widget _trafficStatus(RoadCrossing crossing, double s) {
+    final phase = crossing.phase;
+    final lightColor = phase == TrafficPhase.red
+        ? const Color(0xffee6856)
+        : phase == TrafficPhase.amber
+        ? const Color(0xffffc45a)
+        : const Color(0xff7ad29a);
+    final text = phase == TrafficPhase.red
+        ? 'FEU ROUGE · MAINTIENS FREIN'
+        : phase == TrafficPhase.amber
+        ? 'FEU ORANGE · FREINE !'
+        : 'FEU VERT · RESTE VIGILANT';
+    return Container(
+      margin: EdgeInsets.only(top: 8 * s),
+      padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 7 * s),
+      decoration: BoxDecoration(
+        color: pine.withValues(alpha: .94),
+        borderRadius: BorderRadius.circular(12 * s),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.traffic_rounded, color: lightColor, size: 17 * s),
+          SizedBox(width: 7 * s),
+          Text(
+            text,
+            style: TextStyle(
+              color: cream,
+              fontSize: 10 * s,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _metric(String title, String value, IconData icon, double s) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -892,6 +950,44 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         ),
       ],
+    ),
+  );
+
+  Widget _brakeButton(double s) => Listener(
+    onPointerDown: (_) => game.setBraking(true),
+    onPointerUp: (_) => game.setBraking(false),
+    onPointerCancel: (_) => game.setBraking(false),
+    child: Semantics(
+      button: true,
+      label: 'Maintenir pour freiner',
+      onTap: () => game.setBraking(!game.model.braking),
+      child: Container(
+        width: math.max(78, 110 * s),
+        height: math.max(44, 49 * s),
+        decoration: BoxDecoration(
+          color: game.model.braking ? coral : cream.withValues(alpha: .95),
+          borderRadius: BorderRadius.circular(16 * s),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.stop_rounded,
+              color: game.model.braking ? cream : pine,
+              size: 21 * s,
+            ),
+            SizedBox(width: 3 * s),
+            Text(
+              'FREIN',
+              style: TextStyle(
+                color: game.model.braking ? cream : pine,
+                fontSize: 12 * s,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 

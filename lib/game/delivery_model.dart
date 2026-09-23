@@ -5,7 +5,39 @@ enum RunPhase { ready, running, paused, finished }
 
 enum ItemKind { parcel, cone, car, bump, shield, magnet }
 
-enum RunEvent { pickup, crash, bump, finish, bonus }
+enum RunEvent { pickup, crash, bump, spill, finish, bonus }
+
+enum TrafficPhase { green, amber, red }
+
+class CrossTrafficCar {
+  CrossTrafficCar(this.direction, this.variant)
+    : x = direction > 0 ? -1.55 : 1.55;
+  final int direction;
+  final int variant;
+  double x;
+}
+
+class RoadCrossing {
+  RoadCrossing(this.z, this.flipAfter, this.redDuration);
+  double z;
+  final double flipAfter;
+  final double redDuration;
+  double age = 0;
+  double carTimer = 0;
+  int carsSent = 0;
+  bool resolved = false;
+  final cars = <CrossTrafficCar>[];
+
+  TrafficPhase get phase {
+    if (age < flipAfter) return TrafficPhase.green;
+    if (age < flipAfter + .4) return TrafficPhase.amber;
+    if (age < flipAfter + .4 + redDuration ||
+        cars.any((car) => car.x.abs() < 1.3)) {
+      return TrafficPhase.red;
+    }
+    return TrafficPhase.green;
+  }
+}
 
 class RoadItem {
   RoadItem(this.kind, this.x, this.z, {this.variant = 0});
@@ -46,6 +78,7 @@ class DeliveryModel {
   RunPhase phase = RunPhase.ready;
   final items = <RoadItem>[];
   final flying = <FlyingParcel>[];
+  final crossings = <RoadCrossing>[];
   double elapsed = 0;
   double distance = 0;
   double x = 0;
@@ -55,12 +88,17 @@ class DeliveryModel {
   double leanVelocity = 0;
   double stackSway = 0;
   double stackSwayVelocity = 0;
+  double balanceStress = 0;
+  double balanceGrace = 0;
+  bool braking = false;
   double invulnerability = 0;
   double shake = 0;
   double hop = 0;
   double hopVelocity = 0;
   double eventTime = 0;
   double _spawnTimer = 0;
+  double _crossingTimer = 0;
+  int _crossingsSpawned = 0;
   int _wave = 0;
   int cargo = 0;
   int collected = 0;
@@ -80,8 +118,16 @@ class DeliveryModel {
   double get remaining => math.max(0, stage.seconds - elapsed);
   double get progress => (elapsed / stage.seconds).clamp(0.0, 1.0);
   double get speed => stage.baseSpeed + progress * 6;
+  double get travelSpeed => braking ? 0 : speed;
   double get loadFactor => (cargo / 24).clamp(0.0, 1.0);
-  double get steeringResponse => 12 - 6 * loadFactor;
+  double get steeringResponse => 11 - 7 * loadFactor;
+  RoadCrossing? get upcomingCrossing {
+    for (final crossing in crossings) {
+      if (crossing.z >= playerZ && !crossing.resolved) return crossing;
+    }
+    return null;
+  }
+
   bool get running => phase == RunPhase.running;
 
   void start({int? stage}) {
@@ -91,6 +137,8 @@ class DeliveryModel {
     phase = RunPhase.running;
     elapsed = distance = x = targetX = velocity = lean = leanVelocity = 0;
     stackSway = stackSwayVelocity = 0;
+    balanceStress = balanceGrace = 0;
+    braking = false;
     invulnerability = shake = hop = hopVelocity = eventTime = 0;
     cargo = collected = lost = collisions = streak = bestStreak = peakCargo = 0;
     message = '';
@@ -98,8 +146,11 @@ class DeliveryModel {
     magnetTime = 0;
     _wave = 0;
     _spawnTimer = .25;
+    _crossingTimer = 4.2;
+    _crossingsSpawned = 0;
     items.clear();
     flying.clear();
+    crossings.clear();
     // A gentle opening: three visible parcels before the first obstacle.
     items.addAll([
       RoadItem(ItemKind.parcel, 0, 37),
@@ -127,15 +178,18 @@ class DeliveryModel {
     }
     dt = math.min(dt, .05);
     elapsed = math.min(stage.seconds, elapsed + dt);
-    distance += speed * dt;
+    distance += travelSpeed * dt;
     eventTime = math.max(0, eventTime - dt);
     invulnerability = math.max(0, invulnerability - dt);
     magnetTime = math.max(0, magnetTime - dt);
     shake = math.max(0, shake - dt * 3);
+    balanceGrace = math.max(0, balanceGrace - dt);
     final previousVelocity = velocity;
     final oldX = x;
     final desiredX = (targetX + stackSway * loadFactor * .12).clamp(-.91, .91);
-    x += (desiredX - x) * (1 - math.exp(-steeringResponse * dt));
+    if (!braking) {
+      x += (desiredX - x) * (1 - math.exp(-steeringResponse * dt));
+    }
     velocity = (x - oldX) / dt;
     leanVelocity += -(velocity - previousVelocity) * .36 - lean * 30 * dt;
     leanVelocity *= math.exp(-5 * dt);
@@ -147,6 +201,7 @@ class DeliveryModel {
     stackSwayVelocity += (swayTarget - stackSway) * (14 - loadFactor * 5) * dt;
     stackSwayVelocity *= math.exp(-(6 - loadFactor * 2) * dt);
     stackSway = (stackSway + stackSwayVelocity * dt).clamp(-.42, .42);
+    _updateBalance(dt);
     if (hop > 0 || hopVelocity > 0) {
       hopVelocity -= 380 * dt;
       hop = math.max(0, hop + hopVelocity * dt);
@@ -154,15 +209,31 @@ class DeliveryModel {
         hopVelocity = 0;
       }
     }
-    _spawnTimer -= dt;
-    if (_spawnTimer <= 0 && remaining > 5) {
-      _spawnWave();
-      _spawnTimer += stage.interval;
+    if (!braking) {
+      _spawnTimer -= dt;
+      if (_spawnTimer <= 0 && remaining > 5) {
+        _spawnWave();
+        _spawnTimer += stage.interval;
+      }
+      _crossingTimer -= dt;
+      if (_crossingTimer <= 0 && remaining > 8) {
+        final flipDistance = 53 + _random.nextDouble() * 28;
+        final flipAfter = _crossingsSpawned == 0
+            ? (145 - flipDistance) / speed
+            : _random.nextDouble() < .8
+            ? (145 - flipDistance) / speed
+            : double.infinity;
+        crossings.add(RoadCrossing(145, flipAfter, 2.3 + stageIndex * .2));
+        _crossingsSpawned++;
+        _crossingTimer += 10.5 - stageIndex * .45;
+      }
     }
+
+    _updateCrossings(dt);
 
     for (final item in items) {
       final oldZ = item.z;
-      item.z -= speed * dt;
+      item.z -= travelSpeed * dt;
       // Swept forward collision prevents tunneling, independent of render FPS.
       if (!item.resolved && oldZ >= playerZ && item.z <= playerZ) {
         item.resolved = true;
@@ -192,6 +263,73 @@ class DeliveryModel {
     }
   }
 
+  void _updateBalance(double dt) {
+    if (cargo < 6) {
+      balanceStress = 0;
+      return;
+    }
+    final excess = math.max(0, velocity.abs() - (2.5 - 1.4 * loadFactor));
+    if (balanceGrace == 0 && !braking) {
+      balanceStress =
+          (balanceStress +
+                  excess * dt * (1.2 + 1.8 * loadFactor) -
+                  (excess == 0 ? .36 * dt : 0))
+              .clamp(0.0, 1.2);
+    } else {
+      balanceStress = math.max(0, balanceStress - dt * .8);
+    }
+    if (balanceStress < .85) return;
+    final count = _drop(cargo >= 18 ? 2 : 1);
+    balanceStress = .18;
+    balanceGrace = .85;
+    streak = 0;
+    shake = .35;
+    message = 'Virage trop brusque ! −$count colis';
+    eventTime = 1.5;
+    onEvent?.call(RunEvent.spill);
+  }
+
+  void _updateCrossings(double dt) {
+    for (final crossing in crossings) {
+      final oldZ = crossing.z;
+      crossing.z -= travelSpeed * dt;
+      crossing.age += dt;
+      final redStarts = crossing.flipAfter + .4;
+      final redEnds = redStarts + crossing.redDuration;
+      if (crossing.phase == TrafficPhase.red && crossing.age < redEnds - .35) {
+        crossing.carTimer -= dt;
+        if (crossing.carTimer <= 0) {
+          crossing.cars.add(
+            CrossTrafficCar(
+              crossing.carsSent.isEven ? 1 : -1,
+              crossing.carsSent % 3,
+            ),
+          );
+          crossing.carsSent++;
+          crossing.carTimer += .68 - stageIndex * .04;
+        }
+      }
+      for (final car in crossing.cars) {
+        car.x += car.direction * (1.85 + stageIndex * .12) * dt;
+      }
+      crossing.cars.removeWhere((car) => car.x.abs() > 1.65);
+      if (!crossing.resolved && oldZ >= playerZ && crossing.z <= playerZ) {
+        crossing.resolved = true;
+        if (crossing.phase == TrafficPhase.red) {
+          final carHit = crossing.cars.any((car) => (car.x - x).abs() < .38);
+          if (carHit) {
+            _hit(ItemKind.car);
+            message = 'Voiture au carrefour !';
+          } else {
+            message = 'Feu rouge franchi de justesse !';
+            eventTime = 1.2;
+          }
+        }
+      }
+    }
+    crossings.removeWhere((crossing) => crossing.z < -18);
+  }
+
   void _spawnWave() {
     final lane = _wave < 2 ? _wave : _random.nextInt(3);
     items.add(RoadItem(ItemKind.parcel, lanes[lane], 112, variant: _wave % 3));
@@ -200,7 +338,10 @@ class DeliveryModel {
         RoadItem(ItemKind.parcel, lanes[lane], 94, variant: (_wave + 1) % 3),
       );
     }
-    if (_wave >= 2) {
+    final nearCrossing = crossings.any(
+      (crossing) => (crossing.z - 112).abs() < 20,
+    );
+    if (_wave >= 2 && !nearCrossing) {
       final blocked = (lane + 1 + _random.nextInt(2)) % 3;
       final kind = (_wave % 7 == 5 || (stageIndex == 2 && _wave % 3 == 0))
           ? ItemKind.bump

@@ -79,6 +79,13 @@ class WorldRenderer {
       }
       draws.add((z: item.z, draw: () => _item(item)));
     }
+    for (final crossing in model.crossings) {
+      if (crossing.z < -5 || crossing.z > 160) continue;
+      draws.add((z: crossing.z, draw: () => _trafficLight(crossing)));
+      for (final car in crossing.cars) {
+        draws.add((z: crossing.z, draw: () => _crossingCar(car, crossing.z)));
+      }
+    }
     draws.add((
       z: DeliveryModel.playerZ,
       draw: () => _scooter(model, reduceMotion),
@@ -271,6 +278,11 @@ class WorldRenderer {
         ], const Color(0xffe8dfc5));
       }
     }
+    for (final crossing in model.crossings) {
+      if (crossing.z > -8 && crossing.z < 160) {
+        _intersection(crossing.z);
+      }
+    }
     if (model.remaining < 4.5 && model.phase != RunPhase.ready) {
       final z = DeliveryModel.playerZ + model.remaining * model.speed;
       for (var row = 0; row < 2; row++) {
@@ -285,6 +297,100 @@ class WorldRenderer {
         }
       }
     }
+  }
+
+  void _intersection(double z) {
+    final asphalt = _stage == 3
+        ? const Color(0xff686b80)
+        : const Color(0xff657f80);
+    _path([
+      project(-3.8, z - 6),
+      project(3.8, z - 6),
+      project(3.8, z + 6),
+      project(-3.8, z + 6),
+    ], asphalt);
+    for (final offset in [-2.6, 2.6]) {
+      _path([
+        project(-3.8, z + offset),
+        project(3.8, z + offset),
+        project(3.8, z + offset + .22),
+        project(-3.8, z + offset + .22),
+      ], const Color(0xffd7d6bd));
+    }
+    _path([
+      project(-1, z - 9),
+      project(1, z - 9),
+      project(1, z - 8.2),
+      project(-1, z - 8.2),
+    ], const Color(0xfffff0cf));
+  }
+
+  void _trafficLight(RoadCrossing crossing) {
+    final p = project(1.3, crossing.z);
+    final s = scaleAt(crossing.z);
+    _canvas.save();
+    _canvas.translate(p.dx, p.dy);
+    _canvas.scale(s);
+    _stroke(const Offset(0, 0), const Offset(0, -162), ink, 8);
+    _round(-22, -213, 44, 74, 9, ink);
+    final red = crossing.phase == TrafficPhase.red;
+    final amber = crossing.phase == TrafficPhase.amber;
+    _oval(
+      0,
+      -194,
+      12,
+      12,
+      red ? const Color(0xffff6657) : const Color(0xff785a51),
+    );
+    _oval(
+      0,
+      -176,
+      10,
+      10,
+      amber ? const Color(0xffffce62) : const Color(0xff756c4d),
+    );
+    _oval(
+      0,
+      -156,
+      12,
+      12,
+      crossing.phase == TrafficPhase.green
+          ? const Color(0xff87d7a6)
+          : const Color(0xff4b6b5a),
+    );
+    _canvas.restore();
+  }
+
+  void _crossingCar(CrossTrafficCar car, double z) {
+    final p = project(car.x, z);
+    final s = scaleAt(z);
+    final color = [
+      const Color(0xffe88c63),
+      const Color(0xff739ec1),
+      const Color(0xffd4b35f),
+    ][car.variant % 3];
+    _canvas.save();
+    _canvas.translate(p.dx, p.dy);
+    _canvas.scale(s);
+    if (car.direction < 0) _canvas.scale(-1, 1);
+    _oval(0, 2, 52, 12, const Color(0x55334444));
+    _round(-42, -31, 84, 29, 8, color);
+    _path([
+      const Offset(-20, -31),
+      const Offset(-9, -56),
+      const Offset(22, -56),
+      const Offset(35, -31),
+    ], Color.lerp(color, const Color(0xffffedc9), .2)!);
+    _path([
+      const Offset(-13, -49),
+      const Offset(17, -49),
+      const Offset(28, -32),
+      const Offset(-18, -32),
+    ], const Color(0xff3c6970));
+    _oval(-27, -2, 10, 10, ink);
+    _oval(28, -2, 10, 10, ink);
+    _round(33, -23, 9, 7, 2, const Color(0xffffe1aa));
+    _canvas.restore();
   }
 
   void _building(double side, double z, int variant) {

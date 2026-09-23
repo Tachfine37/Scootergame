@@ -236,6 +236,82 @@ void main() {
     expect(loaded.steeringResponse, empty.steeringResponse);
   });
 
+  test('a hard turn spills a tall pile, but not an empty scooter', () {
+    final empty = DeliveryModel()..start();
+    final loaded = DeliveryModel()..start();
+    loaded.cargo = 20;
+    empty.steer(.9);
+    loaded.steer(.9);
+    advance(empty, .4);
+    advance(loaded, .4);
+    expect(empty.lost, 0);
+    expect(loaded.lost, 2);
+    expect(loaded.cargo, 18);
+    expect(loaded.message, contains('Virage trop brusque'));
+    expect(loaded.balanceGrace, greaterThan(0));
+  });
+
+  test(
+    'quick reversing spills a medium pile while gentle steering is safe',
+    () {
+      final sharp = DeliveryModel()..start();
+      final gentle = DeliveryModel()..start();
+      sharp.cargo = gentle.cargo = 10;
+      sharp.steer(.9);
+      advance(sharp, .4);
+      sharp.steer(-.9);
+      advance(sharp, .5);
+      for (var step = 1; step <= 9; step++) {
+        gentle.steer(step * .1);
+        advance(gentle, .1);
+      }
+      expect(sharp.lost, 1);
+      expect(gentle.lost, 0);
+    },
+  );
+
+  test('a red crossing car hits a rider who does not brake', () {
+    final model = DeliveryModel()..start();
+    model.cargo = 10;
+    final crossing = RoadCrossing(10.1, 0, 5)..age = 1;
+    crossing.cars.add(CrossTrafficCar(1, 0)..x = 0);
+    model.crossings.add(crossing);
+    model.update(.05);
+    expect(crossing.resolved, true);
+    expect(model.collisions, 1);
+    expect(model.cargo, 6);
+    expect(model.message, 'Voiture au carrefour !');
+  });
+
+  test('the light changes from green through amber to red', () {
+    final crossing = RoadCrossing(60, 1, 2);
+    expect(crossing.phase, TrafficPhase.green);
+    crossing.age = 1.2;
+    expect(crossing.phase, TrafficPhase.amber);
+    crossing.age = 1.5;
+    expect(crossing.phase, TrafficPhase.red);
+    crossing.age = 3.5;
+    expect(crossing.phase, TrafficPhase.green);
+  });
+
+  test('braking waits out a red light while cross traffic keeps moving', () {
+    final model = DeliveryModel()..start();
+    final crossing = RoadCrossing(14, 0, 1)..age = .5;
+    model.crossings.add(crossing);
+    model.braking = true;
+    final distance = model.distance;
+    advance(model, 2.5);
+    expect(model.distance, distance);
+    expect(crossing.z, 14);
+    expect(crossing.phase, TrafficPhase.green);
+    expect(crossing.cars, isEmpty);
+    expect(model.elapsed, greaterThan(2));
+    model.braking = false;
+    advance(model, .3);
+    expect(crossing.resolved, true);
+    expect(model.collisions, 0);
+  });
+
   test('each spawned traffic wave leaves a parcel lane open', () {
     final model = DeliveryModel(seed: 17)..start();
     for (var tick = 0; tick < 120 * 20; tick++) {

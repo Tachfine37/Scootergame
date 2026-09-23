@@ -64,6 +64,21 @@ void main() {
     await tester.tap(find.text('C’est parti'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('À BORD'), findsOneWidget);
+    final game = tester
+        .widget<GameWidget<DeliveryGame>>(find.byType(GameWidget<DeliveryGame>))
+        .game!;
+    final brake = await tester.startGesture(
+      tester.getCenter(find.text('FREIN')),
+    );
+    await tester.pump();
+    expect(game.model.braking, true);
+    await brake.up();
+    await tester.pump();
+    expect(game.model.braking, false);
+    game.model.crossings.add(RoadCrossing(50, 0, 2)..age = 1);
+    game.hud.value++;
+    await tester.pump();
+    expect(find.text('FEU ROUGE · MAINTIENS FREIN'), findsOneWidget);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
     expect(find.text('On souffle ?'), findsOneWidget);

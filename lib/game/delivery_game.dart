@@ -31,9 +31,12 @@ class DeliveryGame extends FlameGame {
     model.phase = RunPhase.ready;
     model.items.clear();
     model.flying.clear();
+    model.crossings.clear();
     model.distance = 0;
     model.x = model.targetX = model.hop = model.velocity = model.lean = 0;
     model.stackSway = model.stackSwayVelocity = 0;
+    model.balanceStress = model.balanceGrace = 0;
+    model.braking = false;
     model.shield = false;
     model.magnetTime = model.shake = model.invulnerability = 0;
     steering = 0;
@@ -50,6 +53,7 @@ class DeliveryGame extends FlameGame {
 
   void pauseRun() {
     model.pause();
+    model.braking = false;
     steering = 0;
     hud.value++;
   }
@@ -73,6 +77,13 @@ class DeliveryGame extends FlameGame {
     if (model.running) {
       model.steer(model.targetX + direction * .67);
     }
+  }
+
+  void setBraking(bool value) {
+    final next = model.running && value;
+    if (model.braking == next) return;
+    model.braking = next;
+    hud.value++;
   }
 
   @override
@@ -128,7 +139,7 @@ class DeliveryGame extends FlameGame {
       });
     }
     if (preferences.haptics && !kIsWeb) {
-      final feedback = event == RunEvent.crash
+      final feedback = event == RunEvent.crash || event == RunEvent.spill
           ? HapticFeedback.mediumImpact()
           : HapticFeedback.selectionClick();
       feedback.catchError((Object _) {});
