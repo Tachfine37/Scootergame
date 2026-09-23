@@ -43,6 +43,9 @@ jobs:
       - name: Compiler pour GitHub Pages
         run: flutter build web --release --base-href "/Scootergame/" --no-web-resources-cdn
 
+      - name: Versionner les fichiers web
+        run: python3 tool/version_web.py
+
       - name: Configurer Pages
         uses: actions/configure-pages@v5
         with:
@@ -63,4 +66,3 @@ jobs:
       - name: Publier
         id: deployment
         uses: actions/deploy-pages@v4
-
