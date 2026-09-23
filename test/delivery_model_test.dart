@@ -138,6 +138,31 @@ void main() {
     expect(model.cargo, 1);
   });
 
+  test('cargo and peak keep growing beyond fifteen parcels', () {
+    final model = DeliveryModel()..start();
+    for (var i = 0; i < 21; i++) {
+      model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.parcel, 0, 10.1));
+      model.update(.05);
+    }
+    expect(model.cargo, 21);
+    expect(model.collected, 21);
+    expect(model.peakCargo, 21);
+    expect(model.stars, 3);
+  });
+
+  test('the route offers more than fifteen parcels', () {
+    final model = DeliveryModel(seed: 19)..start();
+    model.magnetTime = 100;
+    for (var tick = 0; tick < 30 * 120; tick++) {
+      model.invulnerability = 1;
+      model.update(1 / 120);
+    }
+    expect(model.cargo, greaterThan(20));
+    expect(model.collected, model.cargo);
+  });
+
   test('lateral miss does not collect a parcel', () {
     final model = DeliveryModel()..start();
     model.items
@@ -195,12 +220,31 @@ void main() {
     expect(model.x, inInclusiveRange(-.91, -.89));
   });
 
+  test('a tall pile steers slower and sways more than an empty scooter', () {
+    final empty = DeliveryModel()..start();
+    final loaded = DeliveryModel()..start();
+    loaded.cargo = 24;
+    empty.steer(.9);
+    loaded.steer(.9);
+    advance(empty, .25);
+    advance(loaded, .25);
+    expect(loaded.steeringResponse, lessThan(empty.steeringResponse));
+    expect(loaded.x, lessThan(empty.x));
+    expect(loaded.stackSway.abs(), greaterThan(empty.stackSway.abs()));
+    loaded.start();
+    expect(loaded.stackSway, 0);
+    expect(loaded.steeringResponse, empty.steeringResponse);
+  });
+
   test('each spawned traffic wave leaves a parcel lane open', () {
     final model = DeliveryModel(seed: 17)..start();
     for (var tick = 0; tick < 120 * 20; tick++) {
       model.update(1 / 120);
       final fresh = model.items.where((item) => item.z > 111).toList();
-      final obstacles = fresh.where((item) => item.kind != ItemKind.parcel);
+      final obstacles = fresh.where(
+        (item) =>
+            [ItemKind.car, ItemKind.cone, ItemKind.bump].contains(item.kind),
+      );
       for (final parcel in fresh.where(
         (item) => item.kind == ItemKind.parcel,
       )) {

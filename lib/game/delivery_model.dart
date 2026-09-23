@@ -53,6 +53,8 @@ class DeliveryModel {
   double velocity = 0;
   double lean = 0;
   double leanVelocity = 0;
+  double stackSway = 0;
+  double stackSwayVelocity = 0;
   double invulnerability = 0;
   double shake = 0;
   double hop = 0;
@@ -78,6 +80,8 @@ class DeliveryModel {
   double get remaining => math.max(0, stage.seconds - elapsed);
   double get progress => (elapsed / stage.seconds).clamp(0.0, 1.0);
   double get speed => stage.baseSpeed + progress * 6;
+  double get loadFactor => (cargo / 24).clamp(0.0, 1.0);
+  double get steeringResponse => 12 - 6 * loadFactor;
   bool get running => phase == RunPhase.running;
 
   void start({int? stage}) {
@@ -86,6 +90,7 @@ class DeliveryModel {
     }
     phase = RunPhase.running;
     elapsed = distance = x = targetX = velocity = lean = leanVelocity = 0;
+    stackSway = stackSwayVelocity = 0;
     invulnerability = shake = hop = hopVelocity = eventTime = 0;
     cargo = collected = lost = collisions = streak = bestStreak = peakCargo = 0;
     message = '';
@@ -129,11 +134,19 @@ class DeliveryModel {
     shake = math.max(0, shake - dt * 3);
     final previousVelocity = velocity;
     final oldX = x;
-    x += (targetX - x) * (1 - math.exp(-12 * dt));
+    final desiredX = (targetX + stackSway * loadFactor * .12).clamp(-.91, .91);
+    x += (desiredX - x) * (1 - math.exp(-steeringResponse * dt));
     velocity = (x - oldX) / dt;
     leanVelocity += -(velocity - previousVelocity) * .36 - lean * 30 * dt;
     leanVelocity *= math.exp(-5 * dt);
     lean = (lean + leanVelocity * dt).clamp(-.7, .7);
+    final swayTarget =
+        (-velocity * (.025 + loadFactor * .12) +
+                math.sin(elapsed * 3.5) * loadFactor * .035)
+            .clamp(-.42, .42);
+    stackSwayVelocity += (swayTarget - stackSway) * (14 - loadFactor * 5) * dt;
+    stackSwayVelocity *= math.exp(-(6 - loadFactor * 2) * dt);
+    stackSway = (stackSway + stackSwayVelocity * dt).clamp(-.42, .42);
     if (hop > 0 || hopVelocity > 0) {
       hopVelocity -= 380 * dt;
       hop = math.max(0, hop + hopVelocity * dt);
@@ -182,6 +195,11 @@ class DeliveryModel {
   void _spawnWave() {
     final lane = _wave < 2 ? _wave : _random.nextInt(3);
     items.add(RoadItem(ItemKind.parcel, lanes[lane], 112, variant: _wave % 3));
+    if (_wave.isEven) {
+      items.add(
+        RoadItem(ItemKind.parcel, lanes[lane], 94, variant: (_wave + 1) % 3),
+      );
+    }
     if (_wave >= 2) {
       final blocked = (lane + 1 + _random.nextInt(2)) % 3;
       final kind = (_wave % 7 == 5 || (stageIndex == 2 && _wave % 3 == 0))
@@ -194,16 +212,14 @@ class DeliveryModel {
         items.add(RoadItem(ItemKind.cone, lanes[other], 112));
       }
     }
-    // Bonuses replace a parcel in its safe lane, never an obstacle.
+    // Bonuses follow the parcel in its safe lane; they never reduce the score
+    // that a careful player can earn on a route.
     if (_wave % 8 == 3) {
-      items.removeWhere(
-        (item) => item.kind == ItemKind.parcel && item.z == 112,
-      );
       items.add(
         RoadItem(
           _wave % 16 == 3 ? ItemKind.shield : ItemKind.magnet,
           lanes[lane],
-          112,
+          126,
         ),
       );
     }

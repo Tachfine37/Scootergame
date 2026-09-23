@@ -15,7 +15,7 @@ Tous les stages sont accessibles dès le départ. Une première étoile permet d
 | Les jardins | 40 s | 9 / 16 / 24 colis |
 | Heure dorée | 45 s | 11 / 19 / 28 colis |
 
-La vitesse et la densité du trafic augmentent. Chaque vague garde une voie libre. Ramasser le bonus bleu **B** protège d'un choc, même sur un ralentisseur. Le bonus rose **A** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Les meilleurs résultats et les étoiles de chaque quartier sont sauvegardés sur l'appareil.
+La vitesse et la densité du trafic augmentent. Chaque vague garde une voie libre et peut contenir plusieurs colis ; les bonus ne remplacent plus les colis. Ramasser le bonus bleu **B** protège d'un choc, même sur un ralentisseur. Le bonus rose **A** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Les meilleurs résultats et les étoiles de chaque quartier sont sauvegardés sur l'appareil.
 
 Le rendu utilise une projection en perspective, des volumes dessinés sur Canvas, un tri par profondeur, des ombres au sol et des animations de pile. Il ne dépend pas d'un moteur 3D, d'images distantes ou d'assets payants. Le gameplay est piloté par Flame ; les menus et commandes sont des widgets Flutter.
 
@@ -48,7 +48,7 @@ flutter run -d IDENTIFIANT_APPAREIL
 - Espace ou Échap : pause / reprise ; espace démarre aussi une tournée.
 - Bouton en haut à droite à l'accueil : activer/désactiver les vibrations (mobile).
 
-Une collision avec un cône fait perdre jusqu'à deux colis. Une voiture fait perdre 40 % du chargement, au moins deux colis si disponibles. Les ralentisseurs font sauter le scooter et font tomber un colis lorsque la pile dépasse cinq colis. Une courte protection évite les doubles pénalités. Chaque vague laisse une voie de collecte libre.
+Une collision avec un cône fait perdre jusqu'à deux colis. Une voiture fait perdre 40 % du chargement, au moins deux colis si disponibles. Les ralentisseurs font sauter le scooter et font tomber un colis lorsque la pile dépasse cinq colis. Une courte protection évite les doubles pénalités. Chaque vague laisse une voie de collecte libre. Plus la pile est haute, plus le scooter met du temps à changer de direction et plus la pile se balance ; tourner doucement aide à garder le cap. Le score n'est pas limité à 15 colis.
 
 Le record et la préférence de vibration sont sauvegardés localement. Pas de compte, de publicité, de paiement ou de serveur de jeu. Le record est distinct de celui de la première démo dans la conversation.
 

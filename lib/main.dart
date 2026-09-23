@@ -326,6 +326,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                             ? 'BOUCLIER ACTIF'
                             : model.magnetTime > 0
                             ? 'AIMANT · ${model.magnetTime.ceil()} s'
+                            : model.cargo >= 10 && model.stackSway.abs() > .12
+                            ? 'ÇA BALANCE !'
+                            : model.cargo >= 10
+                            ? 'PILE LOURDE'
                             : 'GARDE LE CAP',
                         style: TextStyle(
                           color: cream,
@@ -336,7 +340,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                       ),
                       SizedBox(height: 3 * scale),
                       Text(
-                        'Glisse pour conduire',
+                        model.cargo >= 10
+                            ? 'Tourne en douceur'
+                            : 'Glisse pour conduire',
                         style: TextStyle(
                           color: cream.withValues(alpha: .8),
                           fontSize: 11 * scale,

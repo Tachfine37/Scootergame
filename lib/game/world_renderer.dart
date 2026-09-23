@@ -693,17 +693,25 @@ class WorldRenderer {
     _round(-17, -112, 34, 6, 3, const Color(0xff314f4b));
     // A visible luggage rack ties the stack to the scooter.
     _round(-29, -63, 58, 7, 3, const Color(0xff2f5b54));
-    final visible = math.min(count, 15);
+    // Keep the pile on screen while still adding a visible box past 15.
+    final visible = math.min(count, 24);
+    final spacing = visible <= 15 ? 15.0 : 210 / (visible - 1);
     for (var i = 0; i < visible; i++) {
-      final sway = reduceMotion ? 0.0 : model.lean * (i + 1) * .09;
+      final sway = reduceMotion ? 0.0 : model.stackSway;
       _canvas.save();
-      _canvas.translate(math.sin(sway) * (i + 1) * 5, -62 - i * 15.0);
-      _canvas.rotate(sway);
+      _canvas.translate(sway * (i + 1) * 7.5, -62 - i * spacing);
+      _canvas.rotate(sway * (i + 1) * .012);
       _parcel(0, 0, .86 + (i % 3) * .035, i % 3);
       _canvas.restore();
     }
-    if (count > 15) {
-      _label('+${count - 15}', 0, -313, 16, const Color(0xff264d41));
+    if (count > visible) {
+      _label(
+        '×$count',
+        0,
+        -62 - (visible - 1) * spacing - 45,
+        16,
+        const Color(0xff264d41),
+      );
     }
     if (flash) {
       _canvas.restore();

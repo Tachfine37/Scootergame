@@ -33,6 +33,7 @@ class DeliveryGame extends FlameGame {
     model.flying.clear();
     model.distance = 0;
     model.x = model.targetX = model.hop = model.velocity = model.lean = 0;
+    model.stackSway = model.stackSwayVelocity = 0;
     model.shield = false;
     model.magnetTime = model.shake = model.invulnerability = 0;
     steering = 0;
