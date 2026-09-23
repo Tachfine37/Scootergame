@@ -15,6 +15,7 @@ class WorldRenderer {
   late Canvas _canvas;
   double _distance = 0;
   double _clock = 0;
+  int _stage = 0;
 
   double scaleAt(double z) => 28 / (z + 28);
   Offset project(double x, double z, [double elevation = 0]) {
@@ -35,6 +36,7 @@ class WorldRenderer {
     _canvas = canvas;
     _distance = model.distance;
     _clock = clock;
+    _stage = model.stageIndex;
     canvas.save();
     canvas.scale(size.width / width, size.height / height);
     canvas.clipRect(const Rect.fromLTWH(0, 0, width, height));
@@ -55,10 +57,14 @@ class WorldRenderer {
       }
       final n = i + (_distance / 19).floor();
       for (final side in [-1.0, 1.0]) {
-        draws.add((
-          z: z,
-          draw: () => _building(side, z, n + (side > 0 ? 2 : 0)),
-        ));
+        if (_stage == 2) {
+          draws.add((z: z, draw: () => _tree(side * 1.75, z)));
+        } else if (_stage != 1 || side < 0) {
+          draws.add((
+            z: z,
+            draw: () => _building(side, z, n + (side > 0 ? 2 : 0)),
+          ));
+        }
         if (n.isEven) {
           draws.add((z: z - 5, draw: () => _tree(side * 1.34, z - 5)));
         }
@@ -89,6 +95,26 @@ class WorldRenderer {
       _parcel(0, 0, .75, piece.variant, alpha: piece.life.clamp(0, 1));
       canvas.restore();
     }
+    if (model.phase == RunPhase.finished &&
+        model.goalReached &&
+        !reduceMotion) {
+      for (var i = 0; i < 35; i++) {
+        final px = (i * 73.0) % width;
+        final py = (i * 47 + clock * (35 + i % 4 * 12)) % height;
+        _round(
+          px,
+          py,
+          5,
+          10,
+          2,
+          [
+            const Color(0xfff7c65f),
+            const Color(0xffe78676),
+            const Color(0xff73cbb0),
+          ][i % 3],
+        );
+      }
+    }
     // A subtle warm foreground vignette anchors the scooter in the scene.
     _paint.shader = ui.Gradient.linear(
       const Offset(0, 720),
@@ -102,13 +128,29 @@ class WorldRenderer {
 
   void _sky() {
     _paint.shader = ui.Gradient.linear(Offset.zero, const Offset(0, 350), [
-      const Color(0xfface0df),
-      const Color(0xfff5ead0),
+      [
+        const Color(0xfface0df),
+        const Color(0xff98dce9),
+        const Color(0xffc1e1c8),
+        const Color(0xffd5b2d5),
+      ][_stage],
+      [
+        const Color(0xfff5ead0),
+        const Color(0xfff8e9be),
+        const Color(0xfff0edc5),
+        const Color(0xffffc998),
+      ][_stage],
     ]);
     _canvas.drawRect(const Rect.fromLTWH(0, 0, width, height), _paint);
     _paint.shader = null;
     _oval(340, 175, 36, 36, const Color(0x28fff9db));
-    _oval(340, 175, 25, 25, const Color(0xffffefbc));
+    _oval(
+      340,
+      _stage == 3 ? 222 : 175,
+      _stage == 3 ? 34 : 25,
+      _stage == 3 ? 34 : 25,
+      const Color(0xffffefbc),
+    );
     _cloud(77, 180, 1);
     _cloud(257, 142, .7);
     _path([
@@ -122,7 +164,7 @@ class WorldRenderer {
       const Offset(430, 300),
       const Offset(0, 300),
     ], const Color(0xff9fc5b2));
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < (_stage == 2 ? 0 : 16); i++) {
       final bx = i * 30.0 - 20;
       final bh = 16.0 + (i * 17 % 31);
       _round(
@@ -144,7 +186,41 @@ class WorldRenderer {
   }
 
   void _road(DeliveryModel model) {
-    _rect(0, horizon, width, height - horizon, const Color(0xffddceb0));
+    _rect(
+      0,
+      horizon,
+      width,
+      height - horizon,
+      [
+        const Color(0xffddceb0),
+        const Color(0xffebd7a0),
+        const Color(0xff9cbd7e),
+        const Color(0xffc4a8aa),
+      ][_stage],
+    );
+    if (_stage == 1) {
+      _rect(250, horizon, 180, height - horizon, const Color(0xff65bbc4));
+      for (var i = 0; i < 18; i++) {
+        final y = horizon + 14 + i * 30.0;
+        final dx = math.sin(_clock + i) * 9;
+        _stroke(
+          Offset(290 + dx, y),
+          Offset(420 + dx, y),
+          const Color(0x88e2f7ea),
+          2,
+        );
+      }
+      _path([
+        const Offset(375, 291),
+        const Offset(397, 291),
+        const Offset(383, 300),
+      ], ink);
+      _path([
+        const Offset(385, 289),
+        const Offset(385, 265),
+        const Offset(400, 289),
+      ], const Color(0xffffefca));
+    }
     _path([
       project(-1.22, 5000),
       project(1.22, 5000),
@@ -156,7 +232,7 @@ class WorldRenderer {
       project(1, 5000),
       project(1, -2),
       project(-1, -2),
-    ], const Color(0xff778a8c));
+    ], _stage == 3 ? const Color(0xff77778c) : const Color(0xff778a8c));
     for (var i = 0; i < 32; i++) {
       final z = i * 5.0 - (_distance % 5);
       if (z < 0) {
@@ -227,7 +303,9 @@ class WorldRenderer {
       const Color(0xffadc4b0),
       const Color(0xffded5bd),
     ];
-    final color = palette[variant % 4];
+    final color = _stage == 3
+        ? Color.lerp(palette[variant % 4], const Color(0xffab80a3), .35)!
+        : palette[variant % 4];
     _path([
       Offset(left, base.dy),
       Offset(left + w, base.dy),
@@ -253,7 +331,14 @@ class WorldRenderer {
       for (var col = 0; col < 2; col++) {
         final wx = left + (16 + col * 43) * s;
         final wy = base.dy - h + (18 + row * 35) * s;
-        _round(wx, wy, 21 * s, 25 * s, 3 * s, const Color(0xff547978));
+        _round(
+          wx,
+          wy,
+          21 * s,
+          25 * s,
+          3 * s,
+          _stage == 3 ? const Color(0xffffd887) : const Color(0xff547978),
+        );
         _rect(wx + 3 * s, wy + 3 * s, 7 * s, 18 * s, const Color(0xff83a6a1));
         _rect(wx - 2 * s, wy + 25 * s, 25 * s, 3 * s, const Color(0xfff6e2be));
       }
@@ -308,6 +393,27 @@ class WorldRenderer {
     }
     final p = project(x, z);
     final s = scaleAt(z);
+    if (_stage == 1) {
+      _stroke(
+        p,
+        Offset(p.dx + 7 * s, p.dy - 108 * s),
+        const Color(0xffa78656),
+        7 * s,
+      );
+      for (var i = 0; i < 5; i++) {
+        final angle = math.pi + i * math.pi / 4;
+        final tip = Offset(
+          p.dx + 7 * s + math.cos(angle) * 43 * s,
+          p.dy - 100 * s + math.sin(angle) * 24 * s,
+        );
+        _path([
+          Offset(p.dx + 7 * s, p.dy - 106 * s),
+          tip,
+          Offset(tip.dx, tip.dy + 13 * s),
+        ], const Color(0xff3e8a71));
+      }
+      return;
+    }
     _oval(p.dx + 12 * s, p.dy + 2 * s, 25 * s, 8 * s, const Color(0x23304f40));
     _round(
       p.dx - 4 * s,
@@ -342,6 +448,15 @@ class WorldRenderer {
     }
     final p = project(x, z);
     final s = scaleAt(z);
+    if (_stage == 3) {
+      _oval(
+        p.dx - 15 * s,
+        p.dy - 138 * s,
+        27 * s,
+        27 * s,
+        const Color(0x44ffe6a1),
+      );
+    }
     _stroke(
       Offset(p.dx, p.dy),
       Offset(p.dx, p.dy - 135 * s),
@@ -379,6 +494,27 @@ class WorldRenderer {
     _canvas.translate(p.dx, p.dy);
     _canvas.scale(s);
     switch (item.kind) {
+      case ItemKind.shield:
+      case ItemKind.magnet:
+        final color = item.kind == ItemKind.shield
+            ? const Color(0xff4bafd0)
+            : const Color(0xffc675b2);
+        _oval(0, -25, 32, 32, color.withValues(alpha: .22));
+        _oval(0, -25, 24, 24, color);
+        _label(
+          item.kind == ItemKind.shield ? 'B' : 'A',
+          0,
+          -26,
+          25,
+          const Color(0xfffff5dd),
+        );
+        _label(
+          item.kind == ItemKind.shield ? 'BOUCLIER' : 'AIMANT',
+          0,
+          10,
+          10,
+          ink,
+        );
       case ItemKind.parcel:
         _oval(3, 1, 26, 9, const Color(0x35364f42));
         final bob = math.sin(_clock * 4 + item.z * .1) * 3;
@@ -487,6 +623,17 @@ class WorldRenderer {
     final p = project(model.x, DeliveryModel.playerZ);
     final idle = model.phase == RunPhase.ready;
     final count = idle ? 3 : model.cargo;
+    if (model.shield || model.magnetTime > 0) {
+      _oval(
+        p.dx,
+        p.dy - 55,
+        57,
+        95,
+        (model.shield ? const Color(0xff70dcf5) : const Color(0xffedb1e0))
+            .withValues(alpha: .32),
+      );
+      _oval(p.dx, p.dy + 7, 51, 16, const Color(0x99e1fffb));
+    }
     _oval(p.dx + 5, p.dy + 7, 35 + count * .4, 12, const Color(0x45354c44));
     _canvas.save();
     final bob = reduceMotion
@@ -677,4 +824,3 @@ class WorldRenderer {
     _canvas.drawLine(a, b, _paint);
   }
 }
-

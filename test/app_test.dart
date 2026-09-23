@@ -1,10 +1,53 @@
 import 'package:ca_passe/data/game_preferences.dart';
 import 'package:ca_passe/main.dart';
+import 'package:ca_passe/game/delivery_game.dart';
+import 'package:ca_passe/game/delivery_model.dart';
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('stage selection, results and next stage fit a small phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final prefs = GamePreferences(null);
+    await tester.pumpWidget(DeliveryApp(preferences: prefs));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('2'));
+    await tester.pump();
+    expect(find.text('Bord de mer'), findsOneWidget);
+    await tester.tap(find.text('C’est parti'));
+    await tester.pump(const Duration(milliseconds: 100));
+    final game = tester
+        .widget<GameWidget<DeliveryGame>>(find.byType(GameWidget<DeliveryGame>))
+        .game!;
+    expect(game.model.stageIndex, 1);
+    game.model.cargo = 20;
+    game.model.elapsed = game.model.stage.seconds - .01;
+    game.model.update(.05);
+    await tester.pump();
+    expect(game.model.phase, RunPhase.finished);
+    expect(find.text('Quartier suivant'), findsOneWidget);
+    expect(prefs.stageStars(1), 3);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Quartier suivant'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(game.model.stageIndex, 2);
+    expect(game.model.cargo, 0);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    await tester.tap(find.text('Choisir un quartier'));
+    await tester.pump();
+    expect(find.text('Les jardins'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('welcome, start, pause and resume work at narrow mobile size', (
     tester,
   ) async {
@@ -40,6 +83,12 @@ void main() {
     expect(GamePreferences(storage).record, 18);
     await prefs.setHaptics(false);
     expect(GamePreferences(storage).haptics, false);
+    await prefs.saveStage(1, 20);
+    await prefs.saveStage(1, 4);
+    await prefs.saveStage(2, 9);
+    final reloaded = GamePreferences(storage);
+    expect(reloaded.stageBest(1), 20);
+    expect(reloaded.stageStars(1), 3);
+    expect(reloaded.totalStars, 4);
   });
 }
-

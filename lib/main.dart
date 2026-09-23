@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'data/game_preferences.dart';
 import 'game/delivery_game.dart';
 import 'game/delivery_model.dart';
+import 'game/stages.dart';
 
 const pine = Color(0xff234e43);
 const cream = Color(0xfffff5dd);
@@ -222,7 +223,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     ),
                   ),
                   Text(
-                    'LIVRAISON EXPRESS',
+                    '${model.stageIndex + 1} / 4 · ${model.stage.name.toUpperCase()}',
                     style: TextStyle(
                       fontSize: 9 * scale,
                       letterSpacing: 1.7,
@@ -279,7 +280,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         if (model.running) ...[
           Positioned(
-            top: 179 * scale,
+            top: 220 * scale,
             left: 20 * scale,
             right: 20 * scale,
             child: IgnorePointer(
@@ -321,7 +322,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                   child: Column(
                     children: [
                       Text(
-                        'GARDE LE CAP',
+                        model.shield
+                            ? 'BOUCLIER ACTIF'
+                            : model.magnetTime > 0
+                            ? 'AIMANT · ${model.magnetTime.ceil()} s'
+                            : 'GARDE LE CAP',
                         style: TextStyle(
                           color: cream,
                           fontSize: 10 * scale,
@@ -358,9 +363,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       right: 22 * s,
       child: Row(
         children: [
-          _pill(Icons.wb_sunny_outlined, 'LA TOURNÉE DU SOLEIL', s),
+          _pill(Icons.map_outlined, game.model.stage.subtitle.toUpperCase(), s),
           const Spacer(),
-          _pill(Icons.emoji_events_outlined, '${game.displayedRecord}', s),
+          _pill(Icons.star_rounded, '${widget.preferences.totalStars}/12', s),
         ],
       ),
     ),
@@ -403,6 +408,8 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _stagePicker(s),
+          SizedBox(height: 12 * s),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 7 * s),
             decoration: BoxDecoration(
@@ -410,7 +417,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '30 secondes · Un doigt · Le plus de colis possible',
+              '${game.model.stage.seconds.toInt()} s · Objectif : ${game.model.stage.goal} colis livrés',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11 * s,
@@ -434,6 +441,92 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       ),
     ),
   ];
+
+  Widget _stagePicker(double s) => Container(
+    padding: EdgeInsets.all(12 * s),
+    decoration: BoxDecoration(
+      color: cream.withValues(alpha: .97),
+      borderRadius: BorderRadius.circular(20 * s),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'CHOISIS TON QUARTIER',
+          style: TextStyle(
+            fontSize: 10 * s,
+            letterSpacing: 1.4,
+            fontWeight: FontWeight.w800,
+            color: pine,
+          ),
+        ),
+        SizedBox(height: 8 * s),
+        Row(
+          children: List.generate(deliveryStages.length, (i) {
+            final selected = game.model.stageIndex == i;
+            const icons = [
+              Icons.storefront_rounded,
+              Icons.waves_rounded,
+              Icons.park_rounded,
+              Icons.wb_twilight_rounded,
+            ];
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Semantics(
+                  selected: selected,
+                  child: TextButton(
+                    onPressed: () => game.selectStage(i),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 10 * s),
+                      minimumSize: const Size(44, 44),
+                      backgroundColor: selected
+                          ? pine
+                          : pine.withValues(alpha: .06),
+                      foregroundColor: selected ? cream : pine,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(icons[i], size: 23 * s),
+                        SizedBox(height: 5 * s),
+                        Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14 * s,
+                          ),
+                        ),
+                        Text(
+                          '${widget.preferences.stageStars(i)} ★',
+                          style: TextStyle(fontSize: 11 * s),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        SizedBox(height: 6 * s),
+        Text(
+          game.model.stage.name,
+          style: TextStyle(
+            fontSize: 16 * s,
+            fontWeight: FontWeight.w900,
+            color: pine,
+          ),
+        ),
+        Text(
+          '1 ★ ${game.model.stage.goal}  ·  2 ★ ${game.model.stage.twoStars}  ·  3 ★ ${game.model.stage.threeStars} colis',
+          style: TextStyle(fontSize: 11 * s, color: pine),
+        ),
+      ],
+    ),
+  );
 
   Widget _hud(double s) => Column(
     children: [
@@ -475,6 +568,40 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         ),
       ),
       SizedBox(height: 10 * s),
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 5 * s),
+        decoration: BoxDecoration(
+          color: cream.withValues(alpha: .9),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              game.model.goalReached
+                  ? Icons.check_circle_rounded
+                  : Icons.flag_rounded,
+              size: 16 * s,
+              color: pine,
+            ),
+            SizedBox(width: 6 * s),
+            Expanded(
+              child: Text(
+                'Objectif ${game.model.cargo}/${game.model.stage.goal} colis',
+                style: TextStyle(
+                  fontSize: 12 * s,
+                  color: pine,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              '${game.model.streak} à la suite',
+              style: TextStyle(fontSize: 11 * s, color: pine),
+            ),
+          ],
+        ),
+      ),
+      SizedBox(height: 6 * s),
       ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: LinearProgressIndicator(
@@ -521,13 +648,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   Widget _modal(double s, {required bool paused}) {
     final model = game.model;
     final newRecord = model.cargo > game.recordAtStart;
-    final stars = model.cargo >= 15
-        ? 3
-        : model.cargo >= 7
-        ? 2
-        : model.cargo > 0
-        ? 1
-        : 0;
+    final stars = model.stars;
+    final nextStage =
+        !paused &&
+        model.goalReached &&
+        model.stageIndex < deliveryStages.length - 1;
     return Positioned.fill(
       child: Container(
         color: pine.withValues(alpha: .35),
@@ -605,11 +730,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               Text(
                 paused
                     ? 'Ta pile est en sécurité.'
-                    : model.cargo >= 15
-                    ? 'Le quartier peut compter sur toi.'
-                    : model.cargo >= 7
-                    ? 'Bien joué. Tu en prends un de plus ?'
-                    : 'La prochaine tournée sera la bonne.',
+                    : model.goalReached
+                    ? '${model.stage.name} : mission réussie !'
+                    : 'Encore ${model.stage.goal - model.cargo} colis pour la première étoile.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13 * s,
@@ -630,13 +753,22 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ],
               SizedBox(height: 24 * s),
               _primaryButton(
-                paused ? 'Reprendre' : 'Encore une tournée',
-                paused ? Icons.play_arrow_rounded : Icons.replay_rounded,
+                paused
+                    ? 'Reprendre'
+                    : nextStage
+                    ? 'Quartier suivant'
+                    : 'Encore une tournée',
+                paused
+                    ? Icons.play_arrow_rounded
+                    : nextStage
+                    ? Icons.arrow_forward_rounded
+                    : Icons.replay_rounded,
                 () {
                   if (paused) {
                     game.resumeRun();
                     _focus.requestFocus();
                   } else {
+                    if (nextStage) game.selectStage(model.stageIndex + 1);
                     _start();
                   }
                 },
@@ -650,6 +782,18 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     child: const Text('Recommencer la tournée'),
                   ),
                 ),
+              if (!paused && nextStage)
+                TextButton(
+                  onPressed: _start,
+                  child: const Text('Rejouer pour 3 étoiles'),
+                ),
+              TextButton(
+                onPressed: () {
+                  _left = _right = false;
+                  game.selectStage(model.stageIndex);
+                },
+                child: const Text('Choisir un quartier'),
+              ),
             ],
           ),
         ),
@@ -778,4 +922,3 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     ),
   );
 }
-

@@ -1,6 +1,21 @@
 # Ça passe ! — Flutter + Flame, 2,5D
 
-Un prototype jouable de livraison en 30 secondes : ramasser des colis, éviter les voitures et les cônes, franchir les ralentisseurs et livrer la plus grande pile possible.
+Un jeu de livraison en quatre quartiers : ramasser des colis, éviter les voitures et les cônes, franchir les ralentisseurs et livrer la plus grande pile possible.
+
+Jouer : https://tachfine37.github.io/Scootergame/
+
+## Les quartiers
+
+Tous les stages sont accessibles dès le départ. Une première étoile permet de passer directement au quartier suivant ; chaque quartier reste rejouable pour améliorer son record.
+
+| Quartier | Durée | Objectifs 1 / 2 / 3 étoiles |
+| --- | --- | --- |
+| Centre-ville | 30 s | 5 / 10 / 16 colis |
+| Bord de mer | 35 s | 7 / 13 / 20 colis |
+| Les jardins | 40 s | 9 / 16 / 24 colis |
+| Heure dorée | 45 s | 11 / 19 / 28 colis |
+
+La vitesse et la densité du trafic augmentent. Chaque vague garde une voie libre. Ramasser le bonus bleu **B** protège d'un choc, même sur un ralentisseur. Le bonus rose **A** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Les meilleurs résultats et les étoiles de chaque quartier sont sauvegardés sur l'appareil.
 
 Le rendu utilise une projection en perspective, des volumes dessinés sur Canvas, un tri par profondeur, des ombres au sol et des animations de pile. Il ne dépend pas d'un moteur 3D, d'images distantes ou d'assets payants. Le gameplay est piloté par Flame ; les menus et commandes sont des widgets Flutter.
 
@@ -63,5 +78,4 @@ Voir [CODEMAGIC_IPHONE.md](CODEMAGIC_IPHONE.md). Le workflow `ios-check` vérifi
 - `lib/data/game_preferences.dart` : sauvegarde du record et des préférences.
 - `test/` : tests du gameplay, de l'interface et de la sauvegarde.
 
-Ce livrable est un prototype complet du cœur du jeu. Il ne comprend pas encore une boutique, des niveaux multiples, un classement en ligne, une bande-son ou une publication dans les stores.
-
+Ce livrable comprend quatre niveaux, deux bonus et une progression locale. Il ne comprend pas encore une boutique, un classement en ligne, une bande-son ou une publication dans les stores.

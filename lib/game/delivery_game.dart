@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../data/game_preferences.dart';
 import 'delivery_model.dart';
+import 'stages.dart';
 import 'world_renderer.dart';
 
 class DeliveryGame extends FlameGame {
@@ -25,8 +26,21 @@ class DeliveryGame extends FlameGame {
   double _hudTimer = 0;
   int recordAtStart = 0;
 
+  void selectStage(int index) {
+    model.stageIndex = index.clamp(0, deliveryStages.length - 1);
+    model.phase = RunPhase.ready;
+    model.items.clear();
+    model.flying.clear();
+    model.distance = 0;
+    model.x = model.targetX = model.hop = model.velocity = model.lean = 0;
+    model.shield = false;
+    model.magnetTime = model.shake = model.invulnerability = 0;
+    steering = 0;
+    hud.value++;
+  }
+
   void startRun() {
-    recordAtStart = preferences.record;
+    recordAtStart = preferences.stageBest(model.stageIndex);
     model.start();
     steering = 0;
     _accumulator = 0;
@@ -105,6 +119,7 @@ class DeliveryGame extends FlameGame {
 
   void _onEvent(RunEvent event) {
     if (event == RunEvent.finish) {
+      preferences.saveStage(model.stageIndex, model.cargo);
       preferences.saveRecord(model.cargo).then((_) {
         if (!isRemoved) {
           hud.value++;
@@ -121,8 +136,7 @@ class DeliveryGame extends FlameGame {
   }
 
   int get displayedRecord => math.max(
-    preferences.record,
+    preferences.stageBest(model.stageIndex),
     model.phase == RunPhase.finished ? model.cargo : 0,
   );
 }
-

@@ -1,10 +1,11 @@
 import 'dart:math' as math;
+import 'stages.dart';
 
 enum RunPhase { ready, running, paused, finished }
 
-enum ItemKind { parcel, cone, car, bump }
+enum ItemKind { parcel, cone, car, bump, shield, magnet }
 
-enum RunEvent { pickup, crash, bump, finish }
+enum RunEvent { pickup, crash, bump, finish, bonus }
 
 class RoadItem {
   RoadItem(this.kind, this.x, this.z, {this.variant = 0});
@@ -13,6 +14,7 @@ class RoadItem {
   double z;
   final int variant;
   bool resolved = false;
+  bool collected = false;
 }
 
 class FlyingParcel {
@@ -66,18 +68,29 @@ class DeliveryModel {
   int bestStreak = 0;
   int peakCargo = 0;
   String message = '';
+  int stageIndex = 0;
+  bool shield = false;
+  double magnetTime = 0;
+  DeliveryStage get stage => deliveryStages[stageIndex];
+  int get stars => stage.starsFor(cargo);
+  bool get goalReached => cargo >= stage.goal;
 
-  double get remaining => math.max(0, duration - elapsed);
-  double get progress => (elapsed / duration).clamp(0.0, 1.0);
-  double get speed => 22 + progress * 6;
+  double get remaining => math.max(0, stage.seconds - elapsed);
+  double get progress => (elapsed / stage.seconds).clamp(0.0, 1.0);
+  double get speed => stage.baseSpeed + progress * 6;
   bool get running => phase == RunPhase.running;
 
-  void start() {
+  void start({int? stage}) {
+    if (stage != null) {
+      stageIndex = stage.clamp(0, deliveryStages.length - 1);
+    }
     phase = RunPhase.running;
     elapsed = distance = x = targetX = velocity = lean = leanVelocity = 0;
     invulnerability = shake = hop = hopVelocity = eventTime = 0;
     cargo = collected = lost = collisions = streak = bestStreak = peakCargo = 0;
     message = '';
+    shield = false;
+    magnetTime = 0;
     _wave = 0;
     _spawnTimer = .25;
     items.clear();
@@ -108,10 +121,11 @@ class DeliveryModel {
       return;
     }
     dt = math.min(dt, .05);
-    elapsed = math.min(duration, elapsed + dt);
+    elapsed = math.min(stage.seconds, elapsed + dt);
     distance += speed * dt;
     eventTime = math.max(0, eventTime - dt);
     invulnerability = math.max(0, invulnerability - dt);
+    magnetTime = math.max(0, magnetTime - dt);
     shake = math.max(0, shake - dt * 3);
     final previousVelocity = velocity;
     final oldX = x;
@@ -130,7 +144,7 @@ class DeliveryModel {
     _spawnTimer -= dt;
     if (_spawnTimer <= 0 && remaining > 5) {
       _spawnWave();
-      _spawnTimer += 1.03;
+      _spawnTimer += stage.interval;
     }
 
     for (final item in items) {
@@ -140,19 +154,17 @@ class DeliveryModel {
       if (!item.resolved && oldZ >= playerZ && item.z <= playerZ) {
         item.resolved = true;
         final width = item.kind == ItemKind.car ? .32 : .24;
-        if ((item.x - x).abs() < width) {
+        if ((item.x - x).abs() < width ||
+            (item.kind == ItemKind.parcel && magnetTime > 0)) {
+          item.collected =
+              item.kind == ItemKind.parcel ||
+              item.kind == ItemKind.shield ||
+              item.kind == ItemKind.magnet;
           _hit(item.kind);
         }
       }
     }
-    items.removeWhere(
-      (item) =>
-          item.z < -8 ||
-          (item.resolved &&
-              item.kind == ItemKind.parcel &&
-              item.z <= playerZ &&
-              (item.x - x).abs() < .24),
-    );
+    items.removeWhere((item) => item.z < -8 || item.collected);
     for (final piece in flying) {
       piece.x += piece.vx * dt;
       piece.height += piece.vy * dt;
@@ -161,7 +173,7 @@ class DeliveryModel {
       piece.life -= dt;
     }
     flying.removeWhere((piece) => piece.life <= 0);
-    if (elapsed >= duration) {
+    if (elapsed >= stage.seconds) {
       phase = RunPhase.finished;
       onEvent?.call(RunEvent.finish);
     }
@@ -172,15 +184,45 @@ class DeliveryModel {
     items.add(RoadItem(ItemKind.parcel, lanes[lane], 112, variant: _wave % 3));
     if (_wave >= 2) {
       final blocked = (lane + 1 + _random.nextInt(2)) % 3;
-      final kind = _wave % 7 == 5
+      final kind = (_wave % 7 == 5 || (stageIndex == 2 && _wave % 3 == 0))
           ? ItemKind.bump
           : (_wave % 4 == 3 ? ItemKind.car : ItemKind.cone);
       items.add(RoadItem(kind, lanes[blocked], 112, variant: _wave % 3));
+      // The parcel lane always remains clear, even during the rush hour.
+      if (stageIndex >= 2 && _wave % 4 == 0) {
+        final other = 3 - lane - blocked;
+        items.add(RoadItem(ItemKind.cone, lanes[other], 112));
+      }
+    }
+    // Bonuses replace a parcel in its safe lane, never an obstacle.
+    if (_wave % 8 == 3) {
+      items.removeWhere(
+        (item) => item.kind == ItemKind.parcel && item.z == 112,
+      );
+      items.add(
+        RoadItem(
+          _wave % 16 == 3 ? ItemKind.shield : ItemKind.magnet,
+          lanes[lane],
+          112,
+        ),
+      );
     }
     _wave++;
   }
 
   void _hit(ItemKind kind) {
+    if (kind == ItemKind.shield || kind == ItemKind.magnet) {
+      if (kind == ItemKind.shield) {
+        shield = true;
+        message = 'Bouclier ! Un choc protégé';
+      } else {
+        magnetTime = 6;
+        message = 'Aimant ! Tous les colis pendant 6 s';
+      }
+      eventTime = 1.6;
+      onEvent?.call(RunEvent.bonus);
+      return;
+    }
     if (kind == ItemKind.parcel) {
       cargo++;
       collected++;
@@ -196,6 +238,14 @@ class DeliveryModel {
       return;
     }
     if (invulnerability > 0) {
+      return;
+    }
+    if (shield) {
+      shield = false;
+      invulnerability = .85;
+      message = 'Bouclier utilisé · pile sauvée !';
+      eventTime = 1.4;
+      onEvent?.call(RunEvent.bonus);
       return;
     }
     if (kind == ItemKind.bump) {
@@ -245,4 +295,3 @@ class DeliveryModel {
     return count;
   }
 }
-
