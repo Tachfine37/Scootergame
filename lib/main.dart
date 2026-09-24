@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flame/game.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audio/game_music.dart';
 import 'data/game_preferences.dart';
 import 'game/delivery_game.dart';
 import 'game/delivery_model.dart';
@@ -25,8 +27,9 @@ Future<void> main() async {
 }
 
 class DeliveryApp extends StatelessWidget {
-  const DeliveryApp({super.key, required this.preferences});
+  const DeliveryApp({super.key, required this.preferences, this.music});
   final GamePreferences preferences;
+  final GameMusic? music;
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -41,13 +44,14 @@ class DeliveryApp extends StatelessWidget {
         displayColor: pine,
       ),
     ),
-    home: DeliveryScreen(preferences: preferences),
+    home: DeliveryScreen(preferences: preferences, music: music),
   );
 }
 
 class DeliveryScreen extends StatefulWidget {
-  const DeliveryScreen({super.key, required this.preferences});
+  const DeliveryScreen({super.key, required this.preferences, this.music});
   final GamePreferences preferences;
+  final GameMusic? music;
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
 }
@@ -55,6 +59,8 @@ class DeliveryScreen extends StatefulWidget {
 class _DeliveryScreenState extends State<DeliveryScreen>
     with WidgetsBindingObserver {
   late final DeliveryGame game;
+  late final GameMusic _music;
+  RunPhase _lastPhase = RunPhase.ready;
   final _focus = FocusNode(debugLabel: 'delivery-controls');
   bool _left = false;
   bool _right = false;
@@ -65,18 +71,41 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     game = DeliveryGame(widget.preferences);
+    _music = widget.music ?? AssetGameMusic();
+    game.hud.addListener(_onHud);
+  }
+
+  void _onHud() {
+    final phase = game.model.phase;
+    if (phase != _lastPhase &&
+        (phase == RunPhase.wrecked || phase == RunPhase.finished)) {
+      unawaited(_music.stop());
+    }
+    _lastPhase = phase;
+  }
+
+  void _pause() {
+    game.pauseRun();
+    unawaited(_music.pause());
+  }
+
+  void _resume() {
+    game.resumeRun();
+    if (widget.preferences.music) unawaited(_music.resume());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed && game.model.running) {
-      game.pauseRun();
+      _pause();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    game.hud.removeListener(_onHud);
+    unawaited(_music.dispose());
     _focus.dispose();
     super.dispose();
   }
@@ -98,9 +127,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         event.logicalKey == LogicalKeyboardKey.space) {
       if (event is KeyDownEvent) {
         if (game.model.running) {
-          game.pauseRun();
+          _pause();
         } else if (game.model.phase == RunPhase.paused) {
-          game.resumeRun();
+          _resume();
         } else if (game.model.phase != RunPhase.wrecked) {
           _start();
         }
@@ -116,6 +145,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   void _start() {
     _left = _right = _brake = false;
     game.startRun();
+    if (widget.preferences.music) unawaited(_music.start());
     _focus.requestFocus();
   }
 
@@ -249,6 +279,24 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 ),
               ),
               SizedBox(width: 8 * scale),
+              _iconButton(
+                widget.preferences.music
+                    ? Icons.music_note_rounded
+                    : Icons.music_off_rounded,
+                widget.preferences.music ? 'Turn music off' : 'Turn music on',
+                () async {
+                  final enabled = !widget.preferences.music;
+                  await widget.preferences.setMusic(enabled);
+                  if (enabled && game.model.running) {
+                    unawaited(_music.resume());
+                  } else if (!enabled) {
+                    unawaited(_music.pause());
+                  }
+                  if (mounted) setState(() {});
+                },
+                scale,
+              ),
+              SizedBox(width: 4 * scale),
               if (!ready && model.phase != RunPhase.finished)
                 _iconButton(
                   model.phase == RunPhase.paused
@@ -257,9 +305,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                   model.phase == RunPhase.paused ? 'Resume' : 'Pause',
                   () {
                     if (model.phase == RunPhase.paused) {
-                      game.resumeRun();
+                      _resume();
                     } else {
-                      game.pauseRun();
+                      _pause();
                     }
                   },
                   scale,
@@ -949,7 +997,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 paused ? Icons.play_arrow_rounded : Icons.replay_rounded,
                 () {
                   if (paused) {
-                    game.resumeRun();
+                    _resume();
                     _focus.requestFocus();
                   } else {
                     _start();
@@ -968,6 +1016,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               TextButton(
                 onPressed: () {
                   _left = _right = false;
+                  unawaited(_music.stop());
                   game.selectStage(game.startingStage);
                 },
                 child: const Text('Choose a district'),

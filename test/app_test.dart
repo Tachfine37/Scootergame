@@ -1,3 +1,4 @@
+import 'package:ca_passe/audio/game_music.dart';
 import 'package:ca_passe/data/game_preferences.dart';
 import 'package:ca_passe/main.dart';
 import 'package:ca_passe/game/delivery_game.dart';
@@ -6,6 +7,23 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakeGameMusic implements GameMusic {
+  int starts = 0;
+  int pauses = 0;
+  int resumes = 0;
+  int stops = 0;
+  @override
+  Future<void> start() async { starts++; }
+  @override
+  Future<void> pause() async { pauses++; }
+  @override
+  Future<void> resume() async { resumes++; }
+  @override
+  Future<void> stop() async { stops++; }
+  @override
+  Future<void> dispose() async {}
+}
 
 void main() {
   testWidgets('endless game over, saved score and restart fit a small phone', (
@@ -16,7 +34,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final prefs = GamePreferences(null);
-    await tester.pumpWidget(DeliveryApp(preferences: prefs));
+    await tester.pumpWidget(DeliveryApp(preferences: prefs, music: FakeGameMusic()));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('2'));
     await tester.pump();
@@ -69,7 +87,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final prefs = GamePreferences(await SharedPreferences.getInstance());
-    await tester.pumpWidget(DeliveryApp(preferences: prefs));
+    await tester.pumpWidget(DeliveryApp(preferences: prefs, music: FakeGameMusic()));
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('One more\nparcel?'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -117,7 +135,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null)));
+      await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null), music: FakeGameMusic()));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.tap(find.text("Let's go!"));
       await tester.pump(const Duration(milliseconds: 100));
@@ -176,6 +194,8 @@ void main() {
     expect(GamePreferences(storage).record, 18);
     await prefs.setHaptics(false);
     expect(GamePreferences(storage).haptics, false);
+    await prefs.setMusic(false);
+    expect(GamePreferences(storage).music, false);
     await prefs.saveStage(1, 20);
     await prefs.saveStage(1, 4);
     await prefs.saveStage(2, 9);
@@ -188,4 +208,37 @@ void main() {
     expect(GamePreferences(storage).endlessBest, 1234);
     expect(GamePreferences(storage).record, 18);
   });
+  testWidgets('soundtrack follows play, pause, mute and district selection', (tester) async {
+    tester.view.physicalSize = const Size(320, 690);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final music = FakeGameMusic();
+    await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null), music: music));
+    await tester.pump();
+    expect(music.starts, 0);
+    await tester.tap(find.text("Let's go!"));
+    await tester.pump();
+    expect(music.starts, 1);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    expect(music.pauses, 1);
+    await tester.tap(find.widgetWithText(FilledButton, 'Resume'));
+    await tester.pump();
+    expect(music.resumes, 1);
+    await tester.tap(find.byTooltip('Turn music off'));
+    await tester.pump();
+    expect(music.pauses, 2);
+    await tester.tap(find.byTooltip('Turn music on'));
+    await tester.pump();
+    expect(music.resumes, 2);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    await tester.tap(find.text('Choose a district'));
+    await tester.pump();
+    expect(music.stops, 1);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
 }
