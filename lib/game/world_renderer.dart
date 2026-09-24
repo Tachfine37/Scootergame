@@ -16,6 +16,7 @@ class WorldRenderer {
   double _distance = 0;
   double _clock = 0;
   int _stage = 0;
+  int _vehicleTier = 0;
 
   double scaleAt(double z) => 28 / (z + 28);
   Offset project(double x, double z, [double elevation = 0]) {
@@ -37,6 +38,7 @@ class WorldRenderer {
     _distance = model.distance;
     _clock = clock;
     _stage = model.stageIndex;
+    _vehicleTier = model.vehicleTier;
     canvas.save();
     canvas.scale(size.width / width, size.height / height);
     canvas.clipRect(const Rect.fromLTWH(0, 0, width, height));
@@ -85,11 +87,24 @@ class WorldRenderer {
       for (final car in crossing.cars) {
         draws.add((z: crossing.z, draw: () => _crossingCar(car, crossing.z)));
       }
+      for (final person in crossing.pedestrians) {
+        draws.add((
+          z: crossing.z,
+          draw: () => _pedestrian(
+            person,
+            crossing.z,
+            crossing.pedestriansReleased && !reduceMotion,
+          ),
+        ));
+      }
     }
     draws.add((
       z: DeliveryModel.playerZ,
       draw: () => _scooter(model, reduceMotion),
     ));
+    if (model.policeActive) {
+      draws.add((z: 1, draw: () => _police(model, reduceMotion)));
+    }
     draws.sort((a, b) => b.z.compareTo(a.z));
     for (final entry in draws) {
       entry.draw();
@@ -110,6 +125,21 @@ class WorldRenderer {
     );
     canvas.drawRect(const Rect.fromLTWH(0, 720, width, 80), _paint);
     _paint.shader = null;
+    if (model.running &&
+        model.travelSpeed > 0 &&
+        model.difficulty > .15 &&
+        !reduceMotion) {
+      for (var i = 0; i < 8; i++) {
+        final y = 380 + ((_clock * model.travelSpeed * 8 + i * 67) % 390);
+        final x = i.isEven ? 12.0 + i * 3 : width - 12.0 - i * 3;
+        _stroke(
+          Offset(x, y),
+          Offset(x, y + model.difficulty * 36),
+          const Color(0xfffff5dd).withValues(alpha: model.difficulty * .35),
+          2,
+        );
+      }
+    }
     canvas.restore();
   }
 
@@ -261,6 +291,17 @@ class WorldRenderer {
     for (final crossing in model.crossings) {
       if (crossing.z > -8 && crossing.z < 160) {
         _intersection(crossing.z);
+        if (crossing.pedestrianOnly) {
+          for (var i = 0; i < 9; i++) {
+            final x = -.95 + i * .22;
+            _path([
+              project(x, crossing.z - 2),
+              project(x + .12, crossing.z - 2),
+              project(x + .12, crossing.z + 3),
+              project(x, crossing.z + 3),
+            ], const Color(0xfffff5dd));
+          }
+        }
       }
     }
     if (model.distanceToDelivery < 110 && model.phase != RunPhase.ready) {
@@ -383,6 +424,76 @@ class WorldRenderer {
     _oval(-27, -2, 10, 10, ink);
     _oval(28, -2, 10, 10, ink);
     _round(33, -23, 9, 7, 2, const Color(0xffffe1aa));
+    _canvas.restore();
+  }
+
+  void _pedestrian(CrossingPedestrian person, double z, bool walking) {
+    final p = project(person.x, z);
+    final s = scaleAt(z);
+    final stride = walking ? math.sin(_clock * 8 + person.variant) * 6 : 0.0;
+    final jacket = [
+      const Color(0xffdf805f),
+      const Color(0xff4d81a4),
+      const Color(0xff8f72a4),
+    ][person.variant % 3];
+    _canvas.save();
+    _canvas.translate(p.dx, p.dy);
+    _canvas.scale(s);
+    _oval(0, 1, 14, 5, const Color(0x44334444));
+    _stroke(const Offset(-5, -24), Offset(-5 + stride, -2), ink, 5);
+    _stroke(const Offset(5, -24), Offset(5 - stride, -2), ink, 5);
+    _round(-10, -48, 20, 28, 7, jacket);
+    _stroke(const Offset(-9, -42), Offset(-14 - stride, -25), jacket, 5);
+    _stroke(const Offset(9, -42), Offset(14 + stride, -25), jacket, 5);
+    _oval(0, -57, 9, 11, const Color(0xffedbc90));
+    _oval(-1, -64, 9, 5, const Color(0xff534a42));
+    _canvas.restore();
+  }
+
+  void _police(DeliveryModel model, bool reduceMotion) {
+    final caught =
+        model.endReason == RunEnd.caught &&
+        !model.running &&
+        model.phase != RunPhase.paused;
+    final p = project(model.x * .5, caught ? 6 : 1);
+    final redOn = reduceMotion || (_clock * 2).floor().isEven;
+    _canvas.save();
+    _canvas.translate(p.dx, p.dy);
+    _canvas.scale(.9);
+    _car(1);
+    _round(-35, -42, 70, 39, 9, const Color(0xffe6eeeb));
+    _round(-31, -34, 62, 21, 4, const Color(0xff294958));
+    _label('POLICE', 0, -23, 14, const Color(0xfffff5dd));
+    _round(-22, -83, 44, 9, 3, ink);
+    _round(
+      -21,
+      -84,
+      20,
+      8,
+      3,
+      redOn ? const Color(0xfff06059) : const Color(0xff8c514b),
+    );
+    _round(
+      1,
+      -84,
+      20,
+      8,
+      3,
+      !redOn || reduceMotion
+          ? const Color(0xff65b9fa)
+          : const Color(0xff416f96),
+    );
+    if (!reduceMotion) {
+      _oval(
+        redOn ? -12 : 12,
+        -80,
+        24,
+        14,
+        (redOn ? const Color(0xffed6969) : const Color(0xff65b9fa)).withValues(
+          alpha: .16,
+        ),
+      );
+    }
     _canvas.restore();
   }
 
@@ -593,6 +704,16 @@ class WorldRenderer {
     _canvas.translate(p.dx, p.dy);
     _canvas.scale(s);
     switch (item.kind) {
+      case ItemKind.upgrade:
+        _oval(0, 0, 58, 18, const Color(0x99765dad));
+        _round(-51, -5, 102, 15, 5, const Color(0xffbea4e5));
+        _round(-51, -98, 7, 100, 3, const Color(0xffffedcc));
+        _round(44, -98, 7, 100, 3, const Color(0xffffedcc));
+        _round(-57, -111, 114, 35, 6, const Color(0xff63518c));
+        _label('UPGRADE', 0, -96, 17, const Color(0xfffff5dd));
+        _round(-38, -65, 76, 23, 5, const Color(0xfff8c66b));
+        _label('FREE', 0, -54, 14, ink);
+        _label('BIGGER RIDE', 0, -20, 12, const Color(0xfffff5dd));
       case ItemKind.garage:
         _oval(0, 0, 58, 18, const Color(0x993a9d83));
         _round(-51, -5, 102, 15, 5, const Color(0xff76cbae));
@@ -628,6 +749,9 @@ class WorldRenderer {
         _oval(3, 1, 26, 9, const Color(0x35364f42));
         final bob = math.sin(_clock * 4 + item.z * .1) * 3;
         _parcel(0, -7 + bob, 1, item.variant);
+        for (var i = 0; i < _vehicleTier; i++) {
+          _parcel(0, -26 - i * 18 + bob, .8, (item.variant + i + 1) % 3);
+        }
         if (item.z < 60) {
           _stroke(
             const Offset(-29, -34),
@@ -731,7 +855,7 @@ class WorldRenderer {
   void _scooter(DeliveryModel model, bool reduceMotion) {
     final p = project(model.x, DeliveryModel.playerZ);
     final idle = model.phase == RunPhase.ready;
-    final count = idle ? 3 : model.cargo;
+    final count = idle ? 3 : model.exposedCargo;
     final broken = model.integrity == 0 && !idle;
     if (!idle && model.integrity <= 1) {
       for (var i = 0; i < 5; i++) {
@@ -767,6 +891,18 @@ class WorldRenderer {
           ? (reduceMotion ? .55 : (model.wreckTime / 1.2).clamp(0.0, 1.0) * .55)
           : (model.velocity * .035).clamp(-.13, .13),
     );
+    final bodyColor = [
+      const Color(0xfff0bf4e),
+      const Color(0xff64bdae),
+      const Color(0xff78a5cf),
+      const Color(0xffdc8c65),
+    ][model.vehicleTier];
+    if (model.vehicleTier == 3) {
+      _round(-56, -20, 16, 36, 6, ink);
+      _round(40, -20, 16, 36, 6, ink);
+      _round(-55, -69, 110, 65, 10, bodyColor);
+      _round(-49, -59, 98, 44, 6, const Color(0xffc47955));
+    }
     final flash =
         !reduceMotion &&
         !broken &&
@@ -784,15 +920,21 @@ class WorldRenderer {
     _stroke(const Offset(30, -77), const Offset(42, -110), ink, 3);
     _oval(-43, -112, 9, 5, const Color(0xffc2e3d7));
     _oval(43, -112, 9, 5, const Color(0xffc2e3d7));
-    _round(-32, -68, 64, 62, 24, const Color(0xfff0bf4e));
+    _round(-32, -68, 64, 62, 24, bodyColor);
     _path([
       const Offset(-31, -38),
       const Offset(-20, -64),
       const Offset(20, -64),
       const Offset(31, -38),
-    ], const Color(0xffffd96d));
-    _round(-27, -47, 54, 44, 17, const Color(0xffe6a640));
-    _round(-21, -27, 42, 23, 10, const Color(0xfff6c65d));
+    ], Color.lerp(bodyColor, const Color(0xfffff5dd), .25)!);
+    _round(-27, -47, 54, 44, 17, Color.lerp(bodyColor, ink, .12)!);
+    _round(-21, -27, 42, 23, 10, bodyColor);
+    if (model.vehicleTier >= 2) {
+      for (final side in [-1.0, 1.0]) {
+        _round(side * 37 - 12, -64, 24, 42, 6, ink);
+        _round(side * 37 - 9, -60, 18, 25, 4, bodyColor);
+      }
+    }
     _round(-15, -22, 30, 9, 4, const Color(0xffbc6552));
     _round(-11, -9, 22, 8, 2, const Color(0xffffedc7));
     _round(-31, -44, 9, 12, 3, const Color(0xfffaeac5));
@@ -831,13 +973,29 @@ class WorldRenderer {
     _round(-17, -112, 34, 6, 3, const Color(0xff314f4b));
     // A visible luggage rack ties the stack to the scooter.
     _round(-29, -63, 58, 7, 3, const Color(0xff2f5b54));
+    if (model.vehicleTier > 0) {
+      final rackWidth = model.vehicleTier == 3 ? 84.0 : 54.0;
+      _round(-rackWidth / 2, -85, rackWidth, 30, 5, bodyColor);
+      _round(
+        -rackWidth / 2 + 3,
+        -83,
+        rackWidth - 6,
+        5,
+        2,
+        const Color(0xffffe5ad),
+      );
+      _label('${model.storedCargo}/${model.vehicle.storage}', 0, -69, 12, ink);
+    }
     // Keep the pile on screen while still adding a visible box past 15.
     final visible = math.min(count, 24);
     final spacing = visible <= 15 ? 15.0 : 210 / (visible - 1);
     for (var i = 0; i < visible; i++) {
       final sway = reduceMotion ? 0.0 : model.stackSway;
       _canvas.save();
-      _canvas.translate(sway * (i + 1) * 7.5, -62 - i * spacing);
+      _canvas.translate(
+        sway * (i + 1) * 7.5,
+        -(model.vehicleTier > 0 ? 86 : 62) - i * spacing,
+      );
       _canvas.rotate(sway * (i + 1) * .012);
       _parcel(0, 0, .86 + (i % 3) * .035, i % 3);
       _canvas.restore();

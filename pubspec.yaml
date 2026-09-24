@@ -1,7 +1,7 @@
 name: ca_passe
 description: "One More Parcel? — a 2.5D delivery game made with Flutter and Flame."
 publish_to: none
-version: 0.5.0+7
+version: 0.6.0+8
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

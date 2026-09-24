@@ -199,6 +199,11 @@ void main() {
         final model = DeliveryModel(seed: 19)..start(stage: stage);
         for (var tick = 0; tick < 120 * 150; tick++) {
           model.invulnerability = 2;
+          final crossing = model.upcomingCrossing;
+          model.braking =
+              crossing != null &&
+              crossing.z < 25 &&
+              crossing.phase != TrafficPhase.green;
           model.update(1 / 120);
           final fresh = model.items.where((item) => item.z > 111).toList();
           final obstacles = fresh.where(
@@ -223,7 +228,7 @@ void main() {
         expect(model.deliveries, greaterThan(4));
         expect(model.cargo + model.delivered, model.collected - model.lost);
         expect(model.stageIndex, (stage + model.deliveries) % 4);
-        expect(model.speed, lessThanOrEqualTo(36));
+        expect(model.speed, lessThanOrEqualTo(40));
         expect(model.items.length, lessThan(50));
         expect(model.crossings.length, lessThan(4));
       }
@@ -297,6 +302,11 @@ void main() {
     model.magnetTime = 100;
     for (var tick = 0; tick < 30 * 120; tick++) {
       model.invulnerability = 1;
+      final crossing = model.upcomingCrossing;
+      model.braking =
+          crossing != null &&
+          crossing.z < 25 &&
+          crossing.phase != TrafficPhase.green;
       model.update(1 / 120);
     }
     expect(model.collected, greaterThan(20));
@@ -420,17 +430,19 @@ void main() {
     expect(crossing.resolved, true);
     expect(model.collisions, 1);
     expect(model.cargo, 6);
-    expect(model.message, 'Car at the crossing! −4 parcels');
+    expect(model.policeActive, true);
+    expect(model.phase, RunPhase.running);
   });
 
-  test('running a red light is costly even between crossing cars', () {
+  test('a red light starts a chase without phantom collision damage', () {
     final model = DeliveryModel()..start();
     model.cargo = 10;
     model.crossings.add(RoadCrossing(10.1, 0, 5)..age = 1);
     model.update(.05);
-    expect(model.collisions, 1);
-    expect(model.cargo, 6);
-    expect(model.message, 'Ran a red light! −4 parcels');
+    expect(model.collisions, 0);
+    expect(model.cargo, 10);
+    expect(model.integrity, 3);
+    expect(model.policeActive, true);
   });
 
   test('the light changes from green through amber to red', () {
@@ -438,9 +450,9 @@ void main() {
     expect(crossing.phase, TrafficPhase.green);
     crossing.age = 1.2;
     expect(crossing.phase, TrafficPhase.amber);
-    crossing.age = 1.5;
+    crossing.age = 1.8;
     expect(crossing.phase, TrafficPhase.red);
-    crossing.age = 3.5;
+    crossing.age = 3.8;
     expect(crossing.phase, TrafficPhase.green);
   });
 

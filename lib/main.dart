@@ -295,7 +295,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         if (model.running) ...[
           Positioned(
-            top: 320 * scale,
+            top: 358 * scale,
             left: 20 * scale,
             right: 20 * scale,
             child: IgnorePointer(
@@ -337,7 +337,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 Column(
                   children: [
                     Text(
-                      model.cargo >= 6
+                      model.exposedCargo >= 6
                           ? model.balanceStress > .5
                                 ? 'UNSTABLE LOAD'
                                 : 'STEER GENTLY'
@@ -401,7 +401,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             ),
             SizedBox(height: 17 * s),
             Text(
-              'Three hits. One scooter.\nHow far can you deliver?',
+              'Dodge traffic. Lose the cops.\nBuild your delivery ride.',
               style: TextStyle(
                 fontSize: 15 * s,
                 height: 1.4,
@@ -429,7 +429,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Deliver every 400 m · Repair at garages',
+              'Red light = police · Upgrades from 800 m',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11 * s,
@@ -623,6 +623,31 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         ),
       ),
       SizedBox(height: 6 * s),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${game.model.vehicle.name.toUpperCase()} · ${game.model.storedCargo}/${game.model.vehicle.storage} SAFE',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9 * s,
+                fontWeight: FontWeight.w800,
+                color: pine,
+              ),
+            ),
+          ),
+          Text(
+            '${(game.model.travelSpeed * 3.6).round()} km/h · LV ${game.model.speedLevel}',
+            style: TextStyle(
+              fontSize: 10 * s,
+              fontWeight: FontWeight.w900,
+              color: pine,
+            ),
+          ),
+        ],
+      ),
+      SizedBox(height: 6 * s),
       Container(
         padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 5 * s),
         decoration: BoxDecoration(
@@ -660,7 +685,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           color: pine,
         ),
       ),
-      if (game.model.cargo >= 6) ...[
+      if (game.model.exposedCargo >= 6) ...[
         SizedBox(height: 5 * s),
         Row(
           children: [
@@ -684,10 +709,37 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ],
         ),
       ],
+      if (game.model.policeActive)
+        Container(
+          margin: EdgeInsets.only(top: 6 * s),
+          padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 6 * s),
+          decoration: BoxDecoration(
+            color: const Color(0xff314a70),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'POLICE · ${game.model.escapeRemaining.ceil()} m TO ESCAPE',
+                style: TextStyle(
+                  color: cream,
+                  fontSize: 10 * s,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                'No more red lights or crashes',
+                style: TextStyle(color: cream, fontSize: 9 * s),
+              ),
+            ],
+          ),
+        ),
       if (game.model.upcomingCrossing != null &&
           game.model.upcomingCrossing!.z < 100)
         _trafficStatus(game.model.upcomingCrossing!, s),
-      if (game.model.upcomingGarage case final garage?)
+      if (!(game.model.upcomingCrossing != null &&
+              game.model.upcomingCrossing!.z < 100) &&
+          game.model.upcomingGarage != null)
         Container(
           margin: EdgeInsets.only(top: 6 * s),
           padding: EdgeInsets.all(7 * s),
@@ -696,7 +748,8 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            'GARAGE ${garage.x < 0 ? "LEFT" : "RIGHT"} · ${(garage.z - DeliveryModel.playerZ).ceil()} m · 6 coins',
+            _garageHint(),
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: cream,
               fontSize: 11 * s,
@@ -707,6 +760,16 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     ],
   );
 
+  String _garageHint() {
+    final model = game.model;
+    final garage = model.upcomingGarage!;
+    final upgrade = model.upcomingUpgrade;
+    final repair =
+        'GARAGE ${garage.x < 0 ? "LEFT" : "RIGHT"} · ${(garage.z - DeliveryModel.playerZ).ceil()} m · 6 coins';
+    if (upgrade == null) return repair;
+    return '$repair\nUPGRADE ${upgrade.x < 0 ? "LEFT" : "RIGHT"}: ${model.nextVehicle!.name} · FREE';
+  }
+
   Widget _trafficStatus(RoadCrossing crossing, double s) {
     final phase = crossing.phase;
     final lightColor = phase == TrafficPhase.red
@@ -715,7 +778,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         ? const Color(0xffffc45a)
         : const Color(0xff7ad29a);
     final text = phase == TrafficPhase.red
-        ? 'RED LIGHT · HOLD BRAKE'
+        ? crossing.pedestrianOnly
+              ? 'PEDESTRIANS · HOLD BRAKE'
+              : 'RED LIGHT · HOLD BRAKE'
         : phase == TrafficPhase.amber
         ? 'YELLOW LIGHT · BRAKE!'
         : 'GREEN LIGHT · STAY ALERT';
@@ -729,7 +794,13 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.traffic_rounded, color: lightColor, size: 17 * s),
+          Icon(
+            crossing.pedestrianOnly
+                ? Icons.directions_walk_rounded
+                : Icons.traffic_rounded,
+            color: lightColor,
+            size: 17 * s,
+          ),
           SizedBox(width: 7 * s),
           Text(
             text,
@@ -809,7 +880,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                paused ? Icons.local_cafe_rounded : Icons.build_rounded,
+                paused
+                    ? Icons.local_cafe_rounded
+                    : model.endReason == RunEnd.caught
+                    ? Icons.local_police_rounded
+                    : Icons.build_rounded,
                 size: 40 * s,
                 color: coral,
               ),
@@ -817,6 +892,8 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               Text(
                 paused
                     ? 'QUICK BREAK'
+                    : model.endReason == RunEnd.caught
+                    ? 'CAUGHT BY POLICE'
                     : newRecord
                     ? 'NEW BEST'
                     : 'SCOOTER BROKEN',
@@ -844,8 +921,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               SizedBox(height: 10 * s),
               Text(
                 paused
-                    ? 'Deliveries earn coins. Drive into a garage lane to repair for 6 coins.'
-                    : 'Your scooter broke down after ${model.collisions} accidents.\n${model.distance.floor()} m ridden · ${model.repairs} repairs',
+                    ? 'Red lights start a chase. Ride 350 m without another offence or crash to escape.\nRepair: 6 coins. Purple upgrades: free.'
+                    : model.endReason == RunEnd.caught
+                    ? 'The police caught up with you.\n${model.distance.floor()} m ridden · ${model.escapes} escapes'
+                    : 'Your ride broke down after ${model.collisions} accidents.\n${model.distance.floor()} m ridden · ${model.repairs} repairs',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13 * s,

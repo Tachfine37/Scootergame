@@ -95,6 +95,10 @@ void main() {
     await tester.pump();
     expect(find.text('RED LIGHT · HOLD BRAKE'), findsOneWidget);
     expect(find.text('HEALTH 1/3'), findsOneWidget);
+    expect(find.textContaining('GARAGE RIGHT'), findsNothing);
+    game.model.crossings.clear();
+    game.hud.value++;
+    await tester.pump();
     expect(find.textContaining('GARAGE RIGHT'), findsOneWidget);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
@@ -105,6 +109,63 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'upgrades, pedestrians and police fit the smallest supported phone',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null)));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text("Let's go!"));
+      await tester.pump(const Duration(milliseconds: 100));
+      final game = tester
+          .widget<GameWidget<DeliveryGame>>(
+            find.byType(GameWidget<DeliveryGame>),
+          )
+          .game!;
+      game.model.policeActive = true;
+      game.model.cargo = 35;
+      for (var tier = 0; tier < 4; tier++) {
+        game.model.vehicleTier = tier;
+        game.hud.value++;
+        await tester.pump();
+        expect(find.textContaining('TO ESCAPE'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+      game.model.vehicleTier = 2;
+      game.model.items
+        ..clear()
+        ..addAll([
+          RoadItem(ItemKind.garage, .67, 65),
+          RoadItem(ItemKind.upgrade, -.67, 65, variant: 3),
+        ]);
+      game.hud.value++;
+      await tester.pump();
+      expect(find.textContaining('UPGRADE LEFT: Cargo Trike'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      game.model.crossings.add(
+        RoadCrossing(40, 0, 5.2, pedestrianOnly: true)..age = 1,
+      );
+      game.hud.value++;
+      await tester.pump();
+      expect(find.text('PEDESTRIANS · HOLD BRAKE'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      game.model.crossings
+        ..clear()
+        ..add(RoadCrossing(10.1, 0, 5)..age = 1);
+      game.model.update(.05);
+      for (var tick = 0; tick < 150; tick++) {
+        game.model.update(1 / 120);
+      }
+      await tester.pump();
+      expect(find.text('CAUGHT BY POLICE'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   test('record survives loading a new preferences instance', () async {
     SharedPreferences.setMockInitialValues({});

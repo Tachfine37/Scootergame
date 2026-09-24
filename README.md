@@ -8,11 +8,26 @@ Jouer : https://tachfine37.github.io/Scootergame/
 
 Choisissez votre quartier de départ. Downtown, Seaside, Garden District et Golden Hour s'enchaînent sans interrompre la course, tous les 400 mètres. Le chronomètre ne met plus fin à la partie.
 
-- Le scooter dispose de 3 points de santé. Une collision avec une voiture, un cône ou un passage au feu rouge retire un point. Une protection de 1,6 seconde empêche les dégâts en chaîne.
+- Le scooter dispose de 3 points de santé. Une collision avec une voiture ou un cône retire un point. Une protection de 1,6 seconde empêche les dégâts en chaîne.
 - Les bosses et les pertes d'équilibre font tomber des colis sans endommager le scooter. Rayures, feu arrière cassé et fumée rendent les dégâts visibles ; à zéro santé, le scooter bascule puis le bilan apparaît.
 - Chaque passage de livraison, tous les 400 m, dépose automatiquement la pile : 2 pièces et 25 points par colis livré. Chaque mètre parcouru rapporte aussi un point ; les colis encore à bord à la panne ne rapportent pas de points de livraison.
 - Les garages apparaissent après la première livraison, puis environ tous les 400 m. Entrez dans leur voie pour réparer un point contre 6 pièces. Aucun paiement si le scooter est intact ou si le solde est insuffisant.
-- Le meilleur score infini est sauvegardé séparément des anciens records de stages. La vitesse monte de 22 à 36 et la fréquence des obstacles augmente progressivement sur 2 400 m, puis reste plafonnée.
+- Le meilleur score infini est sauvegardé séparément des anciens records de stages. La vitesse monte de 22 à 40 et la fréquence des obstacles augmente progressivement sur 2 000 m, puis reste plafonnée. Le compteur de vitesse, les niveaux tous les 500 m et les traits sur les côtés rendent cette progression visible.
+
+## Police, piétons et véhicules (0.6.0)
+
+- Un premier feu rouge déclenche la police. Une nouvelle infraction ou une collision non protégée pendant la poursuite entraîne l'arrestation. Parcourir 350 m sans nouvelle faute permet de la semer ; patienter à l'arrêt ou en pause ne fait pas progresser cette distance. Le bouclier protège des chocs, pas des infractions. Passer au rouge sans toucher une voiture ne retire plus artificiellement de santé.
+- Après 400 m, certains carrefours deviennent des passages piétons. Les personnages attendent sur le trottoir puis traversent au rouge ; le feu reste rouge jusqu'au dégagement. Une rencontre déclenche un freinage d'urgence et une perte de colis, sans dégâts aux piétons ni à la santé du véhicule.
+- Après les seuils ci-dessous, un portail violet propose gratuitement le véhicule suivant, face à la voie de réparation habituelle. Entrer dans sa voie accepte l'amélioration ; passer ailleurs conserve le véhicule. Les portails reviennent si on les ignore.
+
+| Véhicule | Seuil d'accès | Colis protégés | Colis par ramassage |
+| --- | --- | --- | --- |
+| City Scooter | Départ | 0 | 1 |
+| Box Scooter | 800 m | 6 | 2 |
+| Touring Bike | 1 600 m | 12 | 3 |
+| Cargo Trike | 2 400 m | 20 | 4 |
+
+Les portails apparaissent au prochain garage disponible après le seuil. Coffre, sacoches et caisse de tricycle sont visibles. Les nouveaux véhicules sont plus larges et moins agiles. Le chargement n'a pas de plafond : les colis au-delà du rangement protégé restent empilés et peuvent tomber. Tout revient au véhicule de départ lors d'une nouvelle partie.
 
 Chaque vague garde une voie libre et les abords des garages restent dégagés. Aux carrefours, les voitures traversent au rouge : maintenez **BRAKE** pour attendre. Le bonus bleu **SHIELD** absorbe un choc ; le bonus rose **MAGNET** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Freiner ne rapporte ni distance ni points.
 
