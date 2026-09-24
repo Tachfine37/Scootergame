@@ -194,8 +194,9 @@ class DeliveryModel {
   RoadItem? get upcomingGarage {
     for (final item in items) {
       if ((item.kind == ItemKind.garage || item.kind == ItemKind.upgrade) &&
-          !item.resolved)
+          !item.resolved) {
         return item;
+      }
     }
     return null;
   }
