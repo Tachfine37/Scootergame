@@ -32,89 +32,110 @@ class _AudioSettingsState extends State<AudioSettings> {
   Widget build(BuildContext context) {
     final p = widget.preferences;
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Text(
               'Sound settings',
               style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 12),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Music'),
-              subtitle: const Text('Urban funk · adaptive tempo'),
-              value: p.music,
-              onChanged: (v) => _change(p.setMusic(v)),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Music'),
+                    subtitle: const Text('Urban funk · adaptive tempo'),
+                    value: p.music,
+                    onChanged: (v) => _change(p.setMusic(v)),
+                  ),
+                  Slider(
+                    value: p.musicVolume,
+                    divisions: 20,
+                    label: '${(p.musicVolume * 100).round()}%',
+                    semanticFormatterCallback: (v) =>
+                        'Music volume ${(v * 100).round()} percent',
+                    onChanged: p.music
+                        ? (v) => _change(p.setMusicVolume(v))
+                        : null,
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Sound effects'),
+                    subtitle: const Text(
+                      'Traffic, parcels, upgrades and police',
+                    ),
+                    value: p.effects,
+                    onChanged: (v) => _change(p.setEffects(v)),
+                  ),
+                  Slider(
+                    value: p.effectsVolume,
+                    divisions: 20,
+                    label: '${(p.effectsVolume * 100).round()}%',
+                    semanticFormatterCallback: (v) =>
+                        'Effects volume ${(v * 100).round()} percent',
+                    onChanged: p.effects
+                        ? (v) => _change(p.setEffectsVolume(v))
+                        : null,
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Vibrations'),
+                    value: p.haptics,
+                    onChanged: (v) => _change(p.setHaptics(v)),
+                  ),
+                  if (widget.audio.problem != null)
+                    Text(widget.audio.problem!, textAlign: TextAlign.center),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Audio starts after you tap. Your settings are saved.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Slider(
-              value: p.musicVolume,
-              divisions: 20,
-              label: '${(p.musicVolume * 100).round()}%',
-              semanticFormatterCallback: (v) =>
-                  'Music volume ${(v * 100).round()} percent',
-              onChanged: p.music ? (v) => _change(p.setMusicVolume(v)) : null,
-            ),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Sound effects'),
-              subtitle: const Text('Traffic, parcels, upgrades and police'),
-              value: p.effects,
-              onChanged: (v) => _change(p.setEffects(v)),
-            ),
-            Slider(
-              value: p.effectsVolume,
-              divisions: 20,
-              label: '${(p.effectsVolume * 100).round()}%',
-              semanticFormatterCallback: (v) =>
-                  'Effects volume ${(v * 100).round()} percent',
-              onChanged: p.effects
-                  ? (v) => _change(p.setEffectsVolume(v))
-                  : null,
-            ),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Vibrations'),
-              value: p.haptics,
-              onChanged: (v) => _change(p.setHaptics(v)),
-            ),
-            if (widget.audio.problem != null)
-              Text(widget.audio.problem!, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
+          ),
+          // Actions remain visible even when the settings list needs scrolling.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Row(
               children: [
-                OutlinedButton(
-                  onPressed: p.effects && p.effectsVolume > 0
-                      ? () async {
-                          await widget.audio.effect(
-                            GameSound.upgrade,
-                            preview: true,
-                          );
-                          if (mounted) setState(() {});
-                        }
-                      : null,
-                  child: const Text('Test sound'),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: p.effects && p.effectsVolume > 0
+                        ? () async {
+                            await widget.audio.effect(
+                              GameSound.upgrade,
+                              preview: true,
+                            );
+                            if (mounted) setState(() {});
+                          }
+                        : null,
+                    child: const Text('Test sound'),
+                  ),
                 ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Done'),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Audio starts after you tap. Your settings are saved.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
