@@ -30,7 +30,7 @@ class DeliveryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Ça passe !',
+    title: 'One More Parcel?',
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: pine),
@@ -168,7 +168,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                                     game.steerAt(event.localPosition.dx),
                                 child: Semantics(
                                   label:
-                                      'Route en perspective. Glissez à gauche ou à droite pour diriger le scooter.',
+                                      'Perspective road. Swipe left or right to steer the scooter.',
                                   child: GameWidget(game: game),
                                 ),
                               ),
@@ -222,7 +222,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'ÇA PASSE !',
+                    'ONE MORE PARCEL?',
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 20 * scale,
@@ -246,7 +246,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                   model.phase == RunPhase.paused
                       ? Icons.play_arrow_rounded
                       : Icons.pause_rounded,
-                  model.phase == RunPhase.paused ? 'Reprendre' : 'Pause',
+                  model.phase == RunPhase.paused ? 'Resume' : 'Pause',
                   () {
                     if (model.phase == RunPhase.paused) {
                       game.resumeRun();
@@ -262,8 +262,8 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                       ? Icons.vibration_rounded
                       : Icons.phone_android_rounded,
                   widget.preferences.haptics
-                      ? 'Désactiver les vibrations'
-                      : 'Activer les vibrations',
+                      ? 'Turn vibrations off'
+                      : 'Turn vibrations on',
                   () async {
                     await widget.preferences.setHaptics(
                       !widget.preferences.haptics,
@@ -330,9 +330,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     Text(
                       model.cargo >= 6
                           ? model.balanceStress > .5
-                                ? 'PILE INSTABLE'
-                                : 'VIRAGES DOUX'
-                          : 'GARDE LE CAP',
+                                ? 'UNSTABLE LOAD'
+                                : 'STEER GENTLY'
+                          : 'HOLD YOUR LINE',
                       style: TextStyle(
                         color: cream,
                         fontSize: 9 * scale,
@@ -377,7 +377,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Encore\nun colis ?',
+              'One more\nparcel?',
               style: TextStyle(
                 fontSize: 58 * s,
                 height: .96,
@@ -388,7 +388,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             ),
             SizedBox(height: 17 * s),
             Text(
-              'Une pile trop haute.\nUne livraison à assurer.',
+              'Stack them high.\nMake it to the finish.',
               style: TextStyle(
                 fontSize: 15 * s,
                 height: 1.4,
@@ -416,7 +416,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${game.model.stage.seconds.toInt()} s · Objectif : ${game.model.stage.goal} colis livrés',
+              '${game.model.stage.seconds.toInt()} s · Goal: ${game.model.stage.goal} parcels',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11 * s,
@@ -426,10 +426,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             ),
           ),
           SizedBox(height: 12 * s),
-          _primaryButton('C’est parti', Icons.arrow_forward_rounded, _start, s),
+          _primaryButton("Let's go!", Icons.arrow_forward_rounded, _start, s),
           SizedBox(height: 10 * s),
           Text(
-            'Flèches ← → pour conduire · FREIN au feu rouge',
+            '← → to steer · BRAKE at red lights',
             style: TextStyle(
               color: cream,
               fontSize: 11 * s,
@@ -451,7 +451,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'CHOISIS TON QUARTIER',
+          'CHOOSE YOUR ROUTE',
           style: TextStyle(
             fontSize: 10 * s,
             letterSpacing: 1.4,
@@ -520,7 +520,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         ),
         Text(
-          '1 ★ ${game.model.stage.goal}  ·  2 ★ ${game.model.stage.twoStars}  ·  3 ★ ${game.model.stage.threeStars} colis',
+          '1 ★ ${game.model.stage.goal}  ·  2 ★ ${game.model.stage.twoStars}  ·  3 ★ ${game.model.stage.threeStars} parcels',
           style: TextStyle(fontSize: 11 * s, color: pine),
         ),
       ],
@@ -546,19 +546,19 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _metric(
-              'À BORD',
+              'ON BOARD',
               '${game.model.cargo}',
               Icons.inventory_2_outlined,
               s,
             ),
             _metric(
-              'ARRIVÉE',
+              'TIME LEFT',
               '${game.model.remaining.ceil()} s',
               Icons.timer_outlined,
               s,
             ),
             _metric(
-              'RECORD',
+              'BEST',
               '${game.displayedRecord}',
               Icons.emoji_events_outlined,
               s,
@@ -585,7 +585,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             SizedBox(width: 6 * s),
             Expanded(
               child: Text(
-                'Objectif ${game.model.cargo}/${game.model.stage.goal} colis',
+                'Goal ${game.model.cargo}/${game.model.stage.goal} parcels',
                 style: TextStyle(
                   fontSize: 12 * s,
                   color: pine,
@@ -594,7 +594,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ),
             ),
             Text(
-              '${game.model.streak} à la suite',
+              '${game.model.streak} in a row',
               style: TextStyle(fontSize: 11 * s, color: pine),
             ),
           ],
@@ -615,7 +615,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         Row(
           children: [
             Text(
-              'ÉQUILIBRE',
+              'SWAY',
               style: TextStyle(
                 fontSize: 9 * s,
                 fontWeight: FontWeight.w800,
@@ -648,10 +648,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         ? const Color(0xffffc45a)
         : const Color(0xff7ad29a);
     final text = phase == TrafficPhase.red
-        ? 'FEU ROUGE · MAINTIENS FREIN'
+        ? 'RED LIGHT · HOLD BRAKE'
         : phase == TrafficPhase.amber
-        ? 'FEU ORANGE · FREINE !'
-        : 'FEU VERT · RESTE VIGILANT';
+        ? 'YELLOW LIGHT · BRAKE!'
+        : 'GREEN LIGHT · STAY ALERT';
     return Container(
       margin: EdgeInsets.only(top: 8 * s),
       padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 7 * s),
@@ -746,10 +746,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               SizedBox(height: 14 * s),
               Text(
                 paused
-                    ? 'PETITE PAUSE'
+                    ? 'QUICK BREAK'
                     : newRecord
-                    ? 'NOUVEAU RECORD'
-                    : 'TOURNÉE TERMINÉE',
+                    ? 'NEW BEST'
+                    : 'RUN COMPLETE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 10 * s,
@@ -760,7 +760,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ),
               SizedBox(height: 9 * s),
               Text(
-                paused ? 'On souffle ?' : '${model.cargo} colis\nlivrés !',
+                paused
+                    ? 'Catch your breath?'
+                    : '${model.cargo} ${parcelWord(model.cargo)}\ndelivered!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 39 * s,
@@ -793,10 +795,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               SizedBox(height: 10 * s),
               Text(
                 paused
-                    ? 'Ta pile est en sécurité.'
+                    ? 'Your stack is safe.'
                     : model.goalReached
-                    ? '${model.stage.name} : mission réussie !'
-                    : 'Encore ${model.stage.goal - model.cargo} colis pour la première étoile.',
+                    ? '${model.stage.name}: delivery complete!'
+                    : '${model.stage.goal - model.cargo} more ${parcelWord(model.stage.goal - model.cargo)} for the first star.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13 * s,
@@ -809,19 +811,19 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _resultStat('Ramassés', model.collected, s),
-                    _resultStat('Perdus', model.lost, s),
-                    _resultStat('Record', game.displayedRecord, s),
+                    _resultStat('Picked up', model.collected, s),
+                    _resultStat('Dropped', model.lost, s),
+                    _resultStat('Best', game.displayedRecord, s),
                   ],
                 ),
               ],
               SizedBox(height: 24 * s),
               _primaryButton(
                 paused
-                    ? 'Reprendre'
+                    ? 'Resume'
                     : nextStage
-                    ? 'Quartier suivant'
-                    : 'Encore une tournée',
+                    ? 'Next route'
+                    : 'Ride again',
                 paused
                     ? Icons.play_arrow_rounded
                     : nextStage
@@ -843,20 +845,20 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                   padding: EdgeInsets.only(top: 6 * s),
                   child: TextButton(
                     onPressed: _start,
-                    child: const Text('Recommencer la tournée'),
+                    child: const Text('Restart this run'),
                   ),
                 ),
               if (!paused && nextStage)
                 TextButton(
                   onPressed: _start,
-                  child: const Text('Rejouer pour 3 étoiles'),
+                  child: const Text('Replay for 3 stars'),
                 ),
               TextButton(
                 onPressed: () {
                   _left = _right = false;
                   game.selectStage(model.stageIndex);
                 },
-                child: const Text('Choisir un quartier'),
+                child: const Text('Choose a route'),
               ),
             ],
           ),
@@ -959,7 +961,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     onPointerCancel: (_) => game.setBraking(false),
     child: Semantics(
       button: true,
-      label: 'Maintenir pour freiner',
+      label: 'Hold to brake',
       onTap: () => game.setBraking(!game.model.braking),
       child: Container(
         width: math.max(78, 110 * s),
@@ -978,7 +980,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             ),
             SizedBox(width: 3 * s),
             Text(
-              'FREIN',
+              'BRAKE',
               style: TextStyle(
                 color: game.model.braking ? cream : pine,
                 fontSize: 12 * s,
@@ -1002,7 +1004,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       game.steering = 0;
     },
     child: Semantics(
-      label: direction < 0 ? 'Conduire à gauche' : 'Conduire à droite',
+      label: direction < 0 ? 'Steer left' : 'Steer right',
       button: true,
       child: IconButton.filled(
         onPressed: () => game.nudge(direction),

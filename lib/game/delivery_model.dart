@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'stages.dart';
 
+String parcelWord(int count) => count == 1 ? 'parcel' : 'parcels';
+
 enum RunPhase { ready, running, paused, finished }
 
 enum ItemKind { parcel, cone, car, bump, shield, magnet }
@@ -284,7 +286,7 @@ class DeliveryModel {
     balanceGrace = .85;
     streak = 0;
     shake = .35;
-    message = 'Virage trop brusque ! −$count colis';
+    message = 'Turned too sharply! −$count ${parcelWord(count)}';
     eventTime = 1.5;
     onEvent?.call(RunEvent.spill);
   }
@@ -323,10 +325,10 @@ class DeliveryModel {
           if (!protected) {
             final fallen = before - cargo;
             message = fallen == 0
-                ? (carHit ? 'Voiture au carrefour !' : 'Feu rouge grillé !')
+                ? (carHit ? 'Car at the crossing!' : 'Ran a red light!')
                 : carHit
-                ? 'Voiture au carrefour ! −$fallen colis'
-                : 'Feu rouge grillé ! −$fallen colis';
+                ? 'Car at the crossing! −$fallen ${parcelWord(fallen)}'
+                : 'Ran a red light! −$fallen ${parcelWord(fallen)}';
           }
         }
       }
@@ -375,10 +377,10 @@ class DeliveryModel {
     if (kind == ItemKind.shield || kind == ItemKind.magnet) {
       if (kind == ItemKind.shield) {
         shield = true;
-        message = 'Bouclier ! Un choc protégé';
+        message = 'Shield! Your next hit is blocked';
       } else {
         magnetTime = 6;
-        message = 'Aimant ! Tous les colis pendant 6 s';
+        message = 'Magnet! Collect every lane for 6 s';
       }
       eventTime = 1.6;
       onEvent?.call(RunEvent.bonus);
@@ -391,8 +393,8 @@ class DeliveryModel {
       bestStreak = math.max(bestStreak, streak);
       peakCargo = math.max(peakCargo, cargo);
       message = streak > 1 && streak % 5 == 0
-          ? '$streak sans accroc !'
-          : '+1 colis';
+          ? '$streak in a row!'
+          : '+1 parcel';
       eventTime = .9;
       hopVelocity = math.max(30, hopVelocity);
       onEvent?.call(RunEvent.pickup);
@@ -404,7 +406,7 @@ class DeliveryModel {
     if (shield) {
       shield = false;
       invulnerability = .85;
-      message = 'Bouclier utilisé · pile sauvée !';
+      message = 'Shield used · stack saved!';
       eventTime = 1.4;
       onEvent?.call(RunEvent.bonus);
       return;
@@ -413,7 +415,7 @@ class DeliveryModel {
       hopVelocity = 110;
       leanVelocity += 1.2;
       final count = cargo > 5 ? _drop(1) : 0;
-      message = count > 0 ? 'Ça secoue ! −1 colis' : 'Hop là !';
+      message = count > 0 ? 'Bumpy ride! −1 parcel' : 'Nice hop!';
       eventTime = 1.3;
       invulnerability = .4;
       if (count > 0) {
@@ -431,8 +433,8 @@ class DeliveryModel {
     shake = 1;
     leanVelocity += 2;
     message = count == 0
-        ? 'Oups ! Attention à la route'
-        : 'Oups ! −$count colis';
+        ? 'Oops! Watch the road'
+        : 'Oops! −$count ${parcelWord(count)}';
     eventTime = 1.5;
     onEvent?.call(RunEvent.crash);
   }

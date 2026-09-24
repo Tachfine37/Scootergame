@@ -1,7 +1,7 @@
 name: ca_passe
-description: "Ça passe ! — un jeu de livraison en 2,5D avec Flutter et Flame."
+description: "One More Parcel? — a 2.5D delivery game made with Flutter and Flame."
 publish_to: none
-version: 0.3.1+5
+version: 0.4.0+6
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

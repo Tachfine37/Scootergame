@@ -20,8 +20,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('2'));
     await tester.pump();
-    expect(find.text('Bord de mer'), findsOneWidget);
-    await tester.tap(find.text('C’est parti'));
+    expect(find.text('Seaside'), findsOneWidget);
+    await tester.tap(find.text("Let's go!"));
     await tester.pump(const Duration(milliseconds: 100));
     final game = tester
         .widget<GameWidget<DeliveryGame>>(find.byType(GameWidget<DeliveryGame>))
@@ -32,18 +32,18 @@ void main() {
     game.model.update(.05);
     await tester.pump();
     expect(game.model.phase, RunPhase.finished);
-    expect(find.text('Quartier suivant'), findsOneWidget);
+    expect(find.text('Next route'), findsOneWidget);
     expect(prefs.stageStars(1), 3);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Quartier suivant'));
+    await tester.tap(find.text('Next route'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(game.model.stageIndex, 2);
     expect(game.model.cargo, 0);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
-    await tester.tap(find.text('Choisir un quartier'));
+    await tester.tap(find.text('Choose a route'));
     await tester.pump();
-    expect(find.text('Les jardins'), findsOneWidget);
+    expect(find.text('Garden District'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -59,16 +59,16 @@ void main() {
     final prefs = GamePreferences(await SharedPreferences.getInstance());
     await tester.pumpWidget(DeliveryApp(preferences: prefs));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Encore\nun colis ?'), findsOneWidget);
+    expect(find.text('One more\nparcel?'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('C’est parti'));
+    await tester.tap(find.text("Let's go!"));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('À BORD'), findsOneWidget);
+    expect(find.text('ON BOARD'), findsOneWidget);
     final game = tester
         .widget<GameWidget<DeliveryGame>>(find.byType(GameWidget<DeliveryGame>))
         .game!;
     final brake = await tester.startGesture(
-      tester.getCenter(find.text('FREIN')),
+      tester.getCenter(find.text('BRAKE')),
     );
     await tester.pump();
     expect(game.model.braking, true);
@@ -78,13 +78,13 @@ void main() {
     game.model.crossings.add(RoadCrossing(50, 0, 2)..age = 1);
     game.hud.value++;
     await tester.pump();
-    expect(find.text('FEU ROUGE · MAINTIENS FREIN'), findsOneWidget);
+    expect(find.text('RED LIGHT · HOLD BRAKE'), findsOneWidget);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
-    expect(find.text('On souffle ?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Reprendre'));
+    expect(find.text('Catch your breath?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Resume'));
     await tester.pump();
-    expect(find.text('On souffle ?'), findsNothing);
+    expect(find.text('Catch your breath?'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

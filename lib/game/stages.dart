@@ -30,8 +30,8 @@ class DeliveryStage {
 }
 
 const deliveryStages = [
-  DeliveryStage('Centre-ville', 'Le premier départ', 30, 22, 1.03, 5, 10, 16),
-  DeliveryStage('Bord de mer', 'La grande échappée', 35, 25, .95, 7, 13, 20),
-  DeliveryStage('Les jardins', 'Attention aux bosses', 40, 27, .90, 9, 16, 24),
-  DeliveryStage('Heure dorée', 'Le dernier express', 45, 30, .85, 11, 19, 28),
+  DeliveryStage('Downtown', 'First delivery', 30, 22, 1.03, 5, 10, 16),
+  DeliveryStage('Seaside', 'Coastal escape', 35, 25, .95, 7, 13, 20),
+  DeliveryStage('Garden District', 'Watch the bumps', 40, 27, .90, 9, 16, 24),
+  DeliveryStage('Golden Hour', 'The final express', 45, 30, .85, 11, 19, 28),
 ];

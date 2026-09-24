@@ -484,7 +484,7 @@ class WorldRenderer {
     }
     if (s > .3) {
       _label(
-        variant.isEven ? 'CAFÉ' : 'FLEURS',
+        variant.isEven ? 'CAFE' : 'FLOWERS',
         left + 39 * s,
         base.dy - 57 * s,
         9 * s,
@@ -608,14 +608,14 @@ class WorldRenderer {
         _oval(0, -25, 32, 32, color.withValues(alpha: .22));
         _oval(0, -25, 24, 24, color);
         _label(
-          item.kind == ItemKind.shield ? 'B' : 'A',
+          item.kind == ItemKind.shield ? 'S' : 'M',
           0,
           -26,
           25,
           const Color(0xfffff5dd),
         );
         _label(
-          item.kind == ItemKind.shield ? 'BOUCLIER' : 'AIMANT',
+          item.kind == ItemKind.shield ? 'SHIELD' : 'MAGNET',
           0,
           10,
           10,

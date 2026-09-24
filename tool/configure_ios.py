@@ -22,8 +22,8 @@ def main():
     info_path = root / 'ios/Runner/Info.plist'
     with info_path.open('rb') as stream:
         info = plistlib.load(stream)
-    info['CFBundleDisplayName'] = 'Ça passe !'
-    info['CFBundleName'] = 'CaPasse'
+    info['CFBundleDisplayName'] = 'One More Parcel?'
+    info['CFBundleName'] = 'OneMoreParcel'
     info['UISupportedInterfaceOrientations'] = ['UIInterfaceOrientationPortrait']
     info['UISupportedInterfaceOrientations~ipad'] = ['UIInterfaceOrientationPortrait']
     info['UIRequiresFullScreen'] = True
@@ -36,4 +36,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

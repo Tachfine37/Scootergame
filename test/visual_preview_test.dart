@@ -58,7 +58,7 @@ void main() {
     }
 
     await capture('accueil-flutter');
-    await tester.tap(find.text('C’est parti'));
+    await tester.tap(find.text("Let's go!"));
     await tester.pump(const Duration(milliseconds: 100));
     final widget = tester.widget<GameWidget<DeliveryGame>>(
       find.byType(GameWidget<DeliveryGame>),
@@ -84,4 +84,3 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   }, skip: output == null);
 }
-

@@ -280,7 +280,7 @@ void main() {
     expect(crossing.resolved, true);
     expect(model.collisions, 1);
     expect(model.cargo, 6);
-    expect(model.message, 'Voiture au carrefour ! −4 colis');
+    expect(model.message, 'Car at the crossing! −4 parcels');
   });
 
   test('running a red light is costly even between crossing cars', () {
@@ -290,7 +290,7 @@ void main() {
     model.update(.05);
     expect(model.collisions, 1);
     expect(model.cargo, 6);
-    expect(model.message, 'Feu rouge grillé ! −4 colis');
+    expect(model.message, 'Ran a red light! −4 parcels');
   });
 
   test('the light changes from green through amber to red', () {
