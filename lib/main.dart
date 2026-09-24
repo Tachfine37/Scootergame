@@ -627,7 +627,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         children: [
           Expanded(
             child: Text(
-              '${game.model.vehicle.name.toUpperCase()} · ${game.model.storedCargo}/${game.model.vehicle.storage} SAFE',
+              '${game.model.vehicle.name.toUpperCase()} · ${game.model.vehicle.storage == 0 ? "OPEN RACK" : "${game.model.storedCargo}/${game.model.vehicle.storage} SAFE"}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
