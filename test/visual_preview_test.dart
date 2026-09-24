@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:ca_passe/audio/game_music.dart';
 import 'package:ca_passe/data/game_preferences.dart';
+import 'package:ca_passe/audio/game_music.dart';
 import 'package:ca_passe/game/delivery_game.dart';
 import 'package:ca_passe/game/delivery_model.dart';
 import 'package:ca_passe/main.dart';
@@ -12,9 +12,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Optional artifact export; normal test runs do not write screenshots.
-// CA_PASSE_RENDER_DIR points to the desired output folder.
-class SilentPreviewMusic implements GameMusic {
+class SilentPreviewMusic extends GameMusic {
   @override
   Future<void> start() async {}
   @override
@@ -27,6 +25,8 @@ class SilentPreviewMusic implements GameMusic {
   Future<void> dispose() async {}
 }
 
+// Optional artifact export; normal test runs do not write screenshots.
+// CA_PASSE_RENDER_DIR points to the desired output folder.
 void main() {
   final output = Platform.environment['CA_PASSE_RENDER_DIR'];
   testWidgets('export actual Flutter welcome and gameplay frames', (
@@ -51,7 +51,10 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: boundaryKey,
-        child: DeliveryApp(preferences: GamePreferences(null), music: SilentPreviewMusic()),
+        child: DeliveryApp(
+          preferences: GamePreferences(null),
+          music: SilentPreviewMusic(),
+        ),
       ),
     );
     await tester.pump();

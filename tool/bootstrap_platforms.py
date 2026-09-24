@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from build_game_audio import main as build_audio
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     requested = options.platforms.split(',')
     if not requested or any(p not in {'ios', 'android', 'web'} for p in requested):
         raise SystemExit('Platforms must be ios,android,web (a subset is allowed).')
+    build_audio()
     missing = [p for p in requested if not (root / p).exists()]
     if not missing:
         print('Native wrappers already exist; preserving them.')
@@ -41,4 +43,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

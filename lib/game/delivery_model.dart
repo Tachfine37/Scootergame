@@ -10,7 +10,19 @@ enum ItemKind { parcel, cone, car, bump, shield, magnet, garage, upgrade }
 
 enum RunEnd { broken, caught }
 
-enum RunEvent { pickup, crash, bump, spill, finish, bonus }
+enum RunEvent {
+  pickup,
+  crash,
+  bump,
+  spill,
+  finish,
+  bonus,
+  upgrade,
+  delivery,
+  police,
+  escape,
+  nearMiss,
+}
 
 enum TrafficPhase { green, amber, red }
 
@@ -292,7 +304,7 @@ class DeliveryModel {
         escapes++;
         message = 'Police escaped! Keep riding clean';
         eventTime = 2;
-        onEvent?.call(RunEvent.bonus);
+        onEvent?.call(RunEvent.escape);
       }
     }
     if (speedLevel > _speedLevel) {
@@ -385,6 +397,9 @@ class DeliveryModel {
               item.kind == ItemKind.upgrade;
           _hit(item.kind, upgradeTier: item.variant);
           if (!running) break;
+        } else if (item.kind == ItemKind.car &&
+            (item.x - x).abs() < width + extraWidth + .16) {
+          onEvent?.call(RunEvent.nearMiss);
         }
       }
     }
@@ -410,7 +425,7 @@ class DeliveryModel {
           ? 'Delivered $shipment! +${shipment * 2} coins'
           : 'Next district: ${stage.name}';
       eventTime = 2.4;
-      onEvent?.call(RunEvent.bonus);
+      onEvent?.call(RunEvent.delivery);
     }
   }
 
@@ -558,7 +573,7 @@ class DeliveryModel {
               ? 'Emergency stop! Police alerted'
               : 'Red light! Police chasing · 350 m to escape';
           eventTime = 2.5;
-          onEvent?.call(RunEvent.crash);
+          onEvent?.call(RunEvent.police);
         }
       }
     }
@@ -616,7 +631,7 @@ class DeliveryModel {
         balanceStress = stackSway = stackSwayVelocity = 0;
         message = '${vehicle.name}! ${vehicle.storage} protected slots';
         eventTime = 2.5;
-        onEvent?.call(RunEvent.bonus);
+        onEvent?.call(RunEvent.upgrade);
       }
       return;
     }

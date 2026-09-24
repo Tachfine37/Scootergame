@@ -19,6 +19,7 @@ class DeliveryGame extends FlameGame {
   final DeliveryModel model;
   final WorldRenderer renderer = WorldRenderer();
   final ValueNotifier<int> hud = ValueNotifier(0);
+  void Function(RunEvent)? onAudioEvent;
   bool reduceMotion = false;
   int steering = 0;
   double _clock = 0;
@@ -132,6 +133,7 @@ class DeliveryGame extends FlameGame {
   }
 
   void _onEvent(RunEvent event) {
+    onAudioEvent?.call(event);
     if (event == RunEvent.finish) {
       preferences.saveEndlessBest(model.score).then((_) {
         if (!isRemoved) {

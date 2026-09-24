@@ -5,22 +5,54 @@ import 'package:ca_passe/game/delivery_game.dart';
 import 'package:ca_passe/game/delivery_model.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class FakeGameMusic implements GameMusic {
+class FakeGameMusic extends GameMusic {
+  final sounds = <GameSound>[];
+  bool musicEnabled = true;
+  bool effectsEnabled = true;
+  @override
+  Future<void> effect(GameSound sound, {bool preview = false}) async {
+    sounds.add(sound);
+  }
+
+  @override
+  Future<void> configure({
+    required bool music,
+    required bool effects,
+    required double musicVolume,
+    required double effectsVolume,
+  }) async {
+    musicEnabled = music;
+    effectsEnabled = effects;
+  }
+
   int starts = 0;
   int pauses = 0;
   int resumes = 0;
   int stops = 0;
   @override
-  Future<void> start() async { starts++; }
+  Future<void> start() async {
+    starts++;
+  }
+
   @override
-  Future<void> pause() async { pauses++; }
+  Future<void> pause() async {
+    pauses++;
+  }
+
   @override
-  Future<void> resume() async { resumes++; }
+  Future<void> resume() async {
+    resumes++;
+  }
+
   @override
-  Future<void> stop() async { stops++; }
+  Future<void> stop() async {
+    stops++;
+  }
+
   @override
   Future<void> dispose() async {}
 }
@@ -34,7 +66,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final prefs = GamePreferences(null);
-    await tester.pumpWidget(DeliveryApp(preferences: prefs, music: FakeGameMusic()));
+    await tester.pumpWidget(
+      DeliveryApp(preferences: prefs, music: FakeGameMusic()),
+    );
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('2'));
     await tester.pump();
@@ -87,7 +121,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final prefs = GamePreferences(await SharedPreferences.getInstance());
-    await tester.pumpWidget(DeliveryApp(preferences: prefs, music: FakeGameMusic()));
+    await tester.pumpWidget(
+      DeliveryApp(preferences: prefs, music: FakeGameMusic()),
+    );
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('One more\nparcel?'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -135,7 +171,9 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null), music: FakeGameMusic()));
+      await tester.pumpWidget(
+        DeliveryApp(preferences: GamePreferences(null), music: FakeGameMusic()),
+      );
       await tester.pump(const Duration(milliseconds: 100));
       await tester.tap(find.text("Let's go!"));
       await tester.pump(const Duration(milliseconds: 100));
@@ -196,6 +234,12 @@ void main() {
     expect(GamePreferences(storage).haptics, false);
     await prefs.setMusic(false);
     expect(GamePreferences(storage).music, false);
+    await prefs.setEffects(false);
+    await prefs.setMusicVolume(.25);
+    await prefs.setEffectsVolume(.8);
+    expect(GamePreferences(storage).effects, false);
+    expect(GamePreferences(storage).musicVolume, .25);
+    expect(GamePreferences(storage).effectsVolume, .8);
     await prefs.saveStage(1, 20);
     await prefs.saveStage(1, 4);
     await prefs.saveStage(2, 9);
@@ -208,13 +252,20 @@ void main() {
     expect(GamePreferences(storage).endlessBest, 1234);
     expect(GamePreferences(storage).record, 18);
   });
-  testWidgets('soundtrack follows play, pause, mute and district selection', (tester) async {
-    tester.view.physicalSize = const Size(320, 690);
+
+  testWidgets('soundtrack follows play, pause, mute and district selection', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final music = FakeGameMusic();
-    await tester.pumpWidget(DeliveryApp(preferences: GamePreferences(null), music: music));
+    await tester.pumpWidget(
+      DeliveryApp(preferences: GamePreferences(null), music: music),
+    );
     await tester.pump();
     expect(music.starts, 0);
     await tester.tap(find.text("Let's go!"));
@@ -226,10 +277,22 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Resume'));
     await tester.pump();
     expect(music.resumes, 1);
-    await tester.tap(find.byTooltip('Turn music off'));
+    await tester.tap(find.text('Settings'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(music.pauses, 2);
-    await tester.tap(find.byTooltip('Turn music on'));
+    expect(find.text('Music'), findsOneWidget);
+    await tester.tap(find.text('Music'));
+    await tester.pump();
+    expect(music.musicEnabled, false);
+    expect(music.effectsEnabled, true);
+    await tester.tap(find.text('Test sound'));
+    await tester.pump();
+    expect(music.sounds, contains(GameSound.upgrade));
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.widgetWithText(FilledButton, 'Resume'));
     await tester.pump();
     expect(music.resumes, 2);
     await tester.tap(find.byTooltip('Pause'));
@@ -240,5 +303,4 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(tester.takeException(), isNull);
   });
-
 }

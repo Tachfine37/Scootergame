@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'audio/game_music.dart';
+import 'audio/adaptive_game_music.dart';
+import 'audio/audio_settings.dart';
 import 'data/game_preferences.dart';
 import 'game/delivery_game.dart';
 import 'game/delivery_model.dart';
@@ -61,6 +63,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   late final DeliveryGame game;
   late final GameMusic _music;
   RunPhase _lastPhase = RunPhase.ready;
+  int _deliveryCombo = 0;
+  int _lastDelivered = 0;
+  int _runSerial = 0;
   final _focus = FocusNode(debugLabel: 'delivery-controls');
   bool _left = false;
   bool _right = false;
@@ -71,17 +76,95 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     game = DeliveryGame(widget.preferences);
-    _music = widget.music ?? AssetGameMusic();
+    _music = widget.music ?? AdaptiveGameMusic();
+    game.onAudioEvent = _onAudioEvent;
+    final p = widget.preferences;
+    unawaited(
+      _music.configure(
+        music: p.music,
+        effects: p.effects,
+        musicVolume: p.musicVolume,
+        effectsVolume: p.effectsVolume,
+      ),
+    );
     game.hud.addListener(_onHud);
   }
 
   void _onHud() {
-    final phase = game.model.phase;
-    if (phase != _lastPhase &&
-        (phase == RunPhase.wrecked || phase == RunPhase.finished)) {
-      unawaited(_music.stop());
+    final m = game.model;
+    final phase = m.phase;
+    _music.update(
+      speedLevel: m.speedLevel,
+      police: m.policeActive,
+      escapeRemaining: m.escapeRemaining,
+      vehicle: m.vehicleTier,
+      district: m.stageIndex,
+      stress: m.balanceStress,
+      integrity: m.integrity,
+      braking: m.braking,
+    );
+    if (phase != _lastPhase && phase == RunPhase.wrecked) {
+      final sound = m.endReason == RunEnd.caught
+          ? GameSound.police
+          : GameSound.broken;
+      final runSerial = _runSerial;
+      unawaited(
+        _music.stop().then((_) {
+          if (mounted &&
+              runSerial == _runSerial &&
+              (game.model.phase == RunPhase.wrecked ||
+                  game.model.phase == RunPhase.finished)) {
+            return _music.effect(sound, preview: true);
+          }
+        }),
+      );
     }
     _lastPhase = phase;
+  }
+
+  void _onAudioEvent(RunEvent event) {
+    if (game.model.phase == RunPhase.wrecked || event == RunEvent.finish) {
+      return;
+    }
+    if (event == RunEvent.crash || event == RunEvent.spill) _deliveryCombo = 0;
+    final shipment = game.model.delivered > _lastDelivered;
+    if (event == RunEvent.delivery) {
+      if (shipment) _deliveryCombo++;
+      _lastDelivered = game.model.delivered;
+    }
+    final sound = switch (event) {
+      RunEvent.pickup => GameSound.pickup,
+      RunEvent.crash => GameSound.crash,
+      RunEvent.bump || RunEvent.spill => GameSound.spill,
+      RunEvent.upgrade => GameSound.upgrade,
+      RunEvent.delivery =>
+        !shipment
+            ? GameSound.district
+            : _deliveryCombo >= 3
+            ? GameSound.combo
+            : GameSound.delivery,
+      RunEvent.police => GameSound.police,
+      RunEvent.escape => GameSound.escape,
+      RunEvent.nearMiss => GameSound.nearMiss,
+      _ => GameSound.bonus,
+    };
+    unawaited(_music.effect(sound));
+  }
+
+  Future<void> _openSettings() async {
+    if (game.model.running) _pause();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .9,
+        maxWidth: 480,
+      ),
+      builder: (_) =>
+          AudioSettings(preferences: widget.preferences, audio: _music),
+    );
+    if (mounted) setState(() {});
   }
 
   void _pause() {
@@ -91,13 +174,15 @@ class _DeliveryScreenState extends State<DeliveryScreen>
 
   void _resume() {
     game.resumeRun();
-    if (widget.preferences.music) unawaited(_music.resume());
+    unawaited(_music.resume());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed && game.model.running) {
       _pause();
+    } else if (state != AppLifecycleState.resumed) {
+      unawaited(_music.pause());
     }
   }
 
@@ -105,6 +190,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     game.hud.removeListener(_onHud);
+    game.onAudioEvent = null;
     unawaited(_music.dispose());
     _focus.dispose();
     super.dispose();
@@ -144,8 +230,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
 
   void _start() {
     _left = _right = _brake = false;
+    _deliveryCombo = 0;
+    _lastDelivered = 0;
+    _runSerial++;
     game.startRun();
-    if (widget.preferences.music) unawaited(_music.start());
+    unawaited(_music.start());
     _focus.requestFocus();
   }
 
@@ -279,22 +368,18 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 ),
               ),
               SizedBox(width: 8 * scale),
-              _iconButton(
-                widget.preferences.music
-                    ? Icons.music_note_rounded
-                    : Icons.music_off_rounded,
-                widget.preferences.music ? 'Turn music off' : 'Turn music on',
-                () async {
-                  final enabled = !widget.preferences.music;
-                  await widget.preferences.setMusic(enabled);
-                  if (enabled && game.model.running) {
-                    unawaited(_music.resume());
-                  } else if (!enabled) {
-                    unawaited(_music.pause());
-                  }
-                  if (mounted) setState(() {});
-                },
-                scale,
+              TextButton(
+                onPressed: _openSettings,
+                style: TextButton.styleFrom(
+                  backgroundColor: cream,
+                  foregroundColor: pine,
+                  minimumSize: const Size(64, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                ),
+                child: const Text(
+                  'Settings',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ),
               SizedBox(width: 4 * scale),
               if (!ready && model.phase != RunPhase.finished)
@@ -308,24 +393,6 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                       _resume();
                     } else {
                       _pause();
-                    }
-                  },
-                  scale,
-                )
-              else
-                _iconButton(
-                  widget.preferences.haptics
-                      ? Icons.vibration_rounded
-                      : Icons.phone_android_rounded,
-                  widget.preferences.haptics
-                      ? 'Turn vibrations off'
-                      : 'Turn vibrations on',
-                  () async {
-                    await widget.preferences.setHaptics(
-                      !widget.preferences.haptics,
-                    );
-                    if (mounted) {
-                      setState(() {});
                     }
                   },
                   scale,
@@ -1013,6 +1080,10 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     child: const Text('Restart this run'),
                   ),
                 ),
+              TextButton(
+                onPressed: _openSettings,
+                child: const Text('Sound settings'),
+              ),
               TextButton(
                 onPressed: () {
                   _left = _right = false;

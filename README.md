@@ -93,4 +93,12 @@ Voir [CODEMAGIC_IPHONE.md](CODEMAGIC_IPHONE.md). Le workflow `ios-check` vérifi
 - `lib/data/game_preferences.dart` : sauvegarde du record et des préférences.
 - `test/` : tests du gameplay, de l'interface et de la sauvegarde.
 
-Ce livrable comprend quatre niveaux, deux bonus et une progression locale. Il ne comprend pas encore une boutique, un classement en ligne, une bande-son ou une publication dans les stores.
+Le jeu comprend une course sans fin, quatre quartiers, une progression des véhicules et une bande-son funk adaptative. Il ne comprend pas encore de boutique, de classement en ligne ou de publication dans les stores.
+
+## Audio (0.8.0)
+
+Le bouton **Settings** ouvre les réglages **Music**, **Sound effects** et leurs volumes, mémorisés localement. Les effets restent disponibles quand la musique est coupée. Le jeu se met en pause à l'ouverture des réglages ou quand l'application passe en arrière-plan.
+
+La musique originale est rendue à 100, 110 et 120 BPM, avec une variante de poursuite. Les changements de morceau conservent la position musicale et utilisent un fondu. La vitesse dépend du niveau atteint, pas du freinage. Les sons comprennent les accidents, upgrades, livraisons, police, colis instables et moteurs par véhicule.
+
+Les WAV sont générés sans dépendance ni téléchargement par `python tool/build_game_audio.py`. `tool/bootstrap_platforms.py` lance automatiquement cette étape sur GitHub Actions et Codemagic, avant Flutter. Pour un lancement manuel depuis un clone neuf, exécuter le générateur avant `flutter test` ou `flutter build`. Les fichiers générés sont exclus de Git; les deux scripts de synthèse sont leur source.
