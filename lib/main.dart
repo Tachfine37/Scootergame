@@ -437,7 +437,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           _primaryButton("Let's go!", Icons.arrow_forward_rounded, _start, s),
           SizedBox(height: 10 * s),
           Text(
-            '← → to steer · BRAKE at red lights',
+            'Swipe to steer · BRAKE at red lights',
             style: TextStyle(
               color: cream,
               fontSize: 11 * s,
@@ -506,9 +506,16 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                             fontSize: 14 * s,
                           ),
                         ),
-                        Text(
-                          '${widget.preferences.stageStars(i)} ★',
-                          style: TextStyle(fontSize: 11 * s),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${widget.preferences.stageStars(i)}',
+                              style: TextStyle(fontSize: 11 * s),
+                            ),
+                            SizedBox(width: 2 * s),
+                            Icon(Icons.star_rounded, size: 11 * s),
+                          ],
                         ),
                       ],
                     ),
@@ -528,7 +535,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         ),
         Text(
-          '1 ★ ${game.model.stage.goal}  ·  2 ★ ${game.model.stage.twoStars}  ·  3 ★ ${game.model.stage.threeStars} parcels',
+          '1 star: ${game.model.stage.goal}  ·  2 stars: ${game.model.stage.twoStars}  ·  3 stars: ${game.model.stage.threeStars}',
           style: TextStyle(fontSize: 11 * s, color: pine),
         ),
       ],
