@@ -102,26 +102,6 @@ class WorldRenderer {
       _parcel(0, 0, .75, piece.variant, alpha: piece.life.clamp(0, 1));
       canvas.restore();
     }
-    if (model.phase == RunPhase.finished &&
-        model.goalReached &&
-        !reduceMotion) {
-      for (var i = 0; i < 35; i++) {
-        final px = (i * 73.0) % width;
-        final py = (i * 47 + clock * (35 + i % 4 * 12)) % height;
-        _round(
-          px,
-          py,
-          5,
-          10,
-          2,
-          [
-            const Color(0xfff7c65f),
-            const Color(0xffe78676),
-            const Color(0xff73cbb0),
-          ][i % 3],
-        );
-      }
-    }
     // A subtle warm foreground vignette anchors the scooter in the scene.
     _paint.shader = ui.Gradient.linear(
       const Offset(0, 720),
@@ -283,17 +263,30 @@ class WorldRenderer {
         _intersection(crossing.z);
       }
     }
-    if (model.remaining < 4.5 && model.phase != RunPhase.ready) {
-      final z = DeliveryModel.playerZ + model.remaining * model.speed;
+    if (model.distanceToDelivery < 110 && model.phase != RunPhase.ready) {
+      final z = DeliveryModel.playerZ + model.distanceToDelivery;
+      final sign = project(0, z);
+      _label(
+        'DELIVERY',
+        sign.dx,
+        sign.dy - 14 * scaleAt(z),
+        19 * scaleAt(z),
+        const Color(0xfffff5dd),
+      );
       for (var row = 0; row < 2; row++) {
         for (var col = 0; col < 12; col++) {
           final lx = -1 + col / 6;
-          _path([
-            project(lx, z + row * 1.7),
-            project(lx + 1 / 6, z + row * 1.7),
-            project(lx + 1 / 6, z + (row + 1) * 1.7),
-            project(lx, z + (row + 1) * 1.7),
-          ], (row + col).isEven ? const Color(0xfff9edcf) : ink);
+          _path(
+            [
+              project(lx, z + row * 1.7),
+              project(lx + 1 / 6, z + row * 1.7),
+              project(lx + 1 / 6, z + (row + 1) * 1.7),
+              project(lx, z + (row + 1) * 1.7),
+            ],
+            (row + col).isEven
+                ? const Color(0xfff9edcf)
+                : const Color(0xff3a9d83),
+          );
         }
       }
     }
@@ -600,6 +593,16 @@ class WorldRenderer {
     _canvas.translate(p.dx, p.dy);
     _canvas.scale(s);
     switch (item.kind) {
+      case ItemKind.garage:
+        _oval(0, 0, 58, 18, const Color(0x993a9d83));
+        _round(-51, -5, 102, 15, 5, const Color(0xff76cbae));
+        _round(-51, -98, 7, 100, 3, const Color(0xffffedcc));
+        _round(44, -98, 7, 100, 3, const Color(0xffffedcc));
+        _round(-57, -111, 114, 35, 6, const Color(0xff234e43));
+        _label('GARAGE', 0, -96, 19, const Color(0xfffff5dd));
+        _round(-38, -65, 76, 23, 5, const Color(0xfff8c66b));
+        _label('6 COINS', 0, -54, 13, ink);
+        _label('+1 HEALTH', 0, -20, 12, const Color(0xfffff5dd));
       case ItemKind.shield:
       case ItemKind.magnet:
         final color = item.kind == ItemKind.shield
@@ -729,6 +732,19 @@ class WorldRenderer {
     final p = project(model.x, DeliveryModel.playerZ);
     final idle = model.phase == RunPhase.ready;
     final count = idle ? 3 : model.cargo;
+    final broken = model.integrity == 0 && !idle;
+    if (!idle && model.integrity <= 1) {
+      for (var i = 0; i < 5; i++) {
+        final age = reduceMotion ? i / 5 : (_clock * .6 + i / 5) % 1;
+        _oval(
+          p.dx + 27 + math.sin(i + age * 3) * 12,
+          p.dy - 25 - age * 110,
+          9 + age * 14,
+          9 + age * 14,
+          const Color(0xff4b5050).withValues(alpha: (1 - age) * .45),
+        );
+      }
+    }
     if (model.shield || model.magnetTime > 0) {
       _oval(
         p.dx,
@@ -746,8 +762,16 @@ class WorldRenderer {
         ? 0.0
         : math.sin(_clock * 20) * (model.running ? 1.1 : .3);
     _canvas.translate(p.dx, p.dy - model.hop + bob);
-    _canvas.rotate((model.velocity * .035).clamp(-.13, .13));
-    final flash = model.invulnerability > 0 && (_clock * 14).floor().isEven;
+    _canvas.rotate(
+      broken
+          ? (reduceMotion ? .55 : (model.wreckTime / 1.2).clamp(0.0, 1.0) * .55)
+          : (model.velocity * .035).clamp(-.13, .13),
+    );
+    final flash =
+        !reduceMotion &&
+        !broken &&
+        model.invulnerability > 0 &&
+        (_clock * 14).floor().isEven;
     if (flash) {
       _canvas.saveLayer(
         const Rect.fromLTWH(-90, -450, 180, 500),
@@ -773,6 +797,14 @@ class WorldRenderer {
     _round(-11, -9, 22, 8, 2, const Color(0xffffedc7));
     _round(-31, -44, 9, 12, 3, const Color(0xfffaeac5));
     _round(22, -44, 9, 12, 3, const Color(0xfffaeac5));
+    if (!idle && model.integrity < DeliveryModel.maxIntegrity) {
+      _stroke(const Offset(12, -34), const Offset(24, -25), ink, 2);
+      _stroke(const Offset(13, -28), const Offset(23, -20), ink, 2);
+      if (model.integrity <= 1) {
+        _round(-31, -44, 9, 12, 3, const Color(0xff633e39));
+        _stroke(const Offset(-24, -30), const Offset(-12, -16), ink, 3);
+      }
+    }
     // Rider: jacket, sleeves and helmet, viewed from behind.
     _stroke(
       const Offset(-17, -97),

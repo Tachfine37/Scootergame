@@ -25,9 +25,11 @@ class DeliveryGame extends FlameGame {
   double _accumulator = 0;
   double _hudTimer = 0;
   int recordAtStart = 0;
+  int startingStage = 0;
 
   void selectStage(int index) {
-    model.stageIndex = index.clamp(0, deliveryStages.length - 1);
+    startingStage = index.clamp(0, deliveryStages.length - 1);
+    model.start(stage: startingStage);
     model.phase = RunPhase.ready;
     model.items.clear();
     model.flying.clear();
@@ -44,8 +46,8 @@ class DeliveryGame extends FlameGame {
   }
 
   void startRun() {
-    recordAtStart = preferences.stageBest(model.stageIndex);
-    model.start();
+    recordAtStart = preferences.endlessBest;
+    model.start(stage: startingStage);
     steering = 0;
     _accumulator = 0;
     hud.value++;
@@ -96,11 +98,11 @@ class DeliveryGame extends FlameGame {
     if (model.phase != RunPhase.paused) {
       _clock += safeDt;
     }
-    if (model.running) {
+    if (model.running || model.phase == RunPhase.wrecked) {
       _accumulator += safeDt;
       const step = 1 / 120;
       while (_accumulator >= step) {
-        if (steering != 0) {
+        if (steering != 0 && model.running) {
           model.steer(model.targetX + steering * step * 2.5);
         }
         model.update(step);
@@ -131,8 +133,7 @@ class DeliveryGame extends FlameGame {
 
   void _onEvent(RunEvent event) {
     if (event == RunEvent.finish) {
-      preferences.saveStage(model.stageIndex, model.cargo);
-      preferences.saveRecord(model.cargo).then((_) {
+      preferences.saveEndlessBest(model.score).then((_) {
         if (!isRemoved) {
           hud.value++;
         }
@@ -148,7 +149,7 @@ class DeliveryGame extends FlameGame {
   }
 
   int get displayedRecord => math.max(
-    preferences.stageBest(model.stageIndex),
-    model.phase == RunPhase.finished ? model.cargo : 0,
+    preferences.endlessBest,
+    model.phase == RunPhase.finished ? model.score : 0,
   );
 }

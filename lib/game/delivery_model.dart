@@ -3,9 +3,9 @@ import 'stages.dart';
 
 String parcelWord(int count) => count == 1 ? 'parcel' : 'parcels';
 
-enum RunPhase { ready, running, paused, finished }
+enum RunPhase { ready, running, paused, wrecked, finished }
 
-enum ItemKind { parcel, cone, car, bump, shield, magnet }
+enum ItemKind { parcel, cone, car, bump, shield, magnet, garage }
 
 enum RunEvent { pickup, crash, bump, spill, finish, bonus }
 
@@ -72,7 +72,9 @@ class FlyingParcel {
 /// Pure Dart simulation. Rendering and platform services stay outside this class.
 class DeliveryModel {
   DeliveryModel({int seed = 42}) : _random = math.Random(seed);
-  static const duration = 30.0;
+  static const deliveryInterval = 400.0;
+  static const repairCost = 6;
+  static const maxIntegrity = 3;
   static const playerZ = 10.0;
   static const lanes = [-.67, 0.0, .67];
   final math.Random _random;
@@ -109,17 +111,26 @@ class DeliveryModel {
   int streak = 0;
   int bestStreak = 0;
   int peakCargo = 0;
+  int integrity = maxIntegrity;
+  int delivered = 0;
+  int coins = 0;
+  int repairs = 0;
+  int deliveries = 0;
+  double wreckTime = 0;
+  double _nextDelivery = deliveryInterval;
+  double _nextGarage = 600;
+  int _garagesSpawned = 0;
   String message = '';
   int stageIndex = 0;
   bool shield = false;
   double magnetTime = 0;
   DeliveryStage get stage => deliveryStages[stageIndex];
-  int get stars => stage.starsFor(cargo);
-  bool get goalReached => cargo >= stage.goal;
-
-  double get remaining => math.max(0, stage.seconds - elapsed);
-  double get progress => (elapsed / stage.seconds).clamp(0.0, 1.0);
-  double get speed => stage.baseSpeed + progress * 6;
+  int get score => distance.floor() + delivered * 25;
+  double get distanceToDelivery => math.max(0, _nextDelivery - distance);
+  double get progress => 1 - distanceToDelivery / deliveryInterval;
+  double get difficulty => (distance / 2400).clamp(0.0, 1.0);
+  double get speed => 22 + difficulty * 14;
+  double get spawnInterval => 1.15 - difficulty * .3;
   double get travelSpeed => braking ? 0 : speed;
   double get loadFactor => (cargo / 24).clamp(0.0, 1.0);
   double get steeringResponse => 11 - 7 * loadFactor;
@@ -131,6 +142,12 @@ class DeliveryModel {
   }
 
   bool get running => phase == RunPhase.running;
+  RoadItem? get upcomingGarage {
+    for (final item in items) {
+      if (item.kind == ItemKind.garage && !item.resolved) return item;
+    }
+    return null;
+  }
 
   void start({int? stage}) {
     if (stage != null) {
@@ -143,6 +160,12 @@ class DeliveryModel {
     braking = false;
     invulnerability = shake = hop = hopVelocity = eventTime = 0;
     cargo = collected = lost = collisions = streak = bestStreak = peakCargo = 0;
+    integrity = maxIntegrity;
+    delivered = coins = repairs = deliveries = 0;
+    wreckTime = 0;
+    _nextDelivery = deliveryInterval;
+    _nextGarage = 600;
+    _garagesSpawned = 0;
     message = '';
     shield = false;
     magnetTime = 0;
@@ -175,11 +198,21 @@ class DeliveryModel {
   }
 
   void update(double dt) {
-    if (!running || dt <= 0 || !dt.isFinite) {
+    if (dt <= 0 || !dt.isFinite) {
       return;
     }
     dt = math.min(dt, .05);
-    elapsed = math.min(stage.seconds, elapsed + dt);
+    if (phase == RunPhase.wrecked) {
+      wreckTime += dt;
+      shake = math.max(0, shake - dt * 2);
+      if (wreckTime >= 1.2) {
+        phase = RunPhase.finished;
+        onEvent?.call(RunEvent.finish);
+      }
+      return;
+    }
+    if (!running) return;
+    elapsed += dt;
     distance += travelSpeed * dt;
     eventTime = math.max(0, eventTime - dt);
     invulnerability = math.max(0, invulnerability - dt);
@@ -213,12 +246,12 @@ class DeliveryModel {
     }
     if (!braking) {
       _spawnTimer -= dt;
-      if (_spawnTimer <= 0 && remaining > 5) {
+      if (_spawnTimer <= 0) {
         _spawnWave();
-        _spawnTimer += stage.interval;
+        _spawnTimer += spawnInterval;
       }
       _crossingTimer -= dt;
-      if (_crossingTimer <= 0 && remaining > 8) {
+      if (_crossingTimer <= 0 && upcomingGarage == null) {
         final flipDistance = 53 + _random.nextDouble() * 28;
         final flipAfter = _crossingsSpawned == 0
             ? (145 - flipDistance) / speed
@@ -227,11 +260,13 @@ class DeliveryModel {
             : double.infinity;
         crossings.add(RoadCrossing(145, flipAfter, 2.3 + stageIndex * .2));
         _crossingsSpawned++;
-        _crossingTimer += 10.5 - stageIndex * .45;
+        _crossingTimer += 11 - difficulty * 2;
       }
+      _spawnGarage();
     }
 
     _updateCrossings(dt);
+    if (!running) return;
 
     for (final item in items) {
       final oldZ = item.z;
@@ -239,14 +274,18 @@ class DeliveryModel {
       // Swept forward collision prevents tunneling, independent of render FPS.
       if (!item.resolved && oldZ >= playerZ && item.z <= playerZ) {
         item.resolved = true;
-        final width = item.kind == ItemKind.car ? .32 : .24;
+        final width = item.kind == ItemKind.car || item.kind == ItemKind.garage
+            ? .32
+            : .24;
         if ((item.x - x).abs() < width ||
             (item.kind == ItemKind.parcel && magnetTime > 0)) {
           item.collected =
               item.kind == ItemKind.parcel ||
               item.kind == ItemKind.shield ||
-              item.kind == ItemKind.magnet;
+              item.kind == ItemKind.magnet ||
+              item.kind == ItemKind.garage;
           _hit(item.kind);
+          if (!running) break;
         }
       }
     }
@@ -259,10 +298,57 @@ class DeliveryModel {
       piece.life -= dt;
     }
     flying.removeWhere((piece) => piece.life <= 0);
-    if (elapsed >= stage.seconds) {
-      phase = RunPhase.finished;
-      onEvent?.call(RunEvent.finish);
+    if (running && distance >= _nextDelivery) {
+      final shipment = cargo;
+      delivered += shipment;
+      coins += shipment * 2;
+      cargo = 0;
+      balanceStress = stackSway = stackSwayVelocity = 0;
+      deliveries++;
+      _nextDelivery += deliveryInterval;
+      stageIndex = (stageIndex + 1) % deliveryStages.length;
+      message = shipment > 0
+          ? 'Delivered $shipment! +${shipment * 2} coins'
+          : 'Next district: ${stage.name}';
+      eventTime = 2.4;
+      onEvent?.call(RunEvent.bonus);
     }
+  }
+
+  void _spawnGarage() {
+    if (distance + 102 < _nextGarage) return;
+    final z = _nextGarage - distance + playerZ;
+    if (crossings.any((crossing) => (crossing.z - z).abs() < 40)) {
+      _nextGarage += 60;
+      return;
+    }
+    // A clear approach gives the rider time to enter the repair lane.
+    items.removeWhere(
+      (item) =>
+          (item.z - z).abs() < 28 &&
+          [ItemKind.car, ItemKind.cone, ItemKind.bump].contains(item.kind),
+    );
+    items.add(
+      RoadItem(ItemKind.garage, _garagesSpawned.isEven ? .67 : -.67, z),
+    );
+    _garagesSpawned++;
+    _nextGarage += deliveryInterval;
+  }
+
+  void _repair() {
+    if (integrity == maxIntegrity) {
+      message = 'Garage: scooter already healthy';
+    } else if (coins < repairCost) {
+      message = 'Garage: need $repairCost coins';
+    } else {
+      coins -= repairCost;
+      integrity++;
+      repairs++;
+      invulnerability = 1.6;
+      message = 'Repaired! +1 health, -$repairCost coins';
+    }
+    eventTime = 2;
+    onEvent?.call(RunEvent.bonus);
   }
 
   void _updateBalance(double dt) {
@@ -322,7 +408,7 @@ class DeliveryModel {
           final protected = shield;
           final before = cargo;
           _hit(ItemKind.car);
-          if (!protected) {
+          if (!protected && running) {
             final fallen = before - cargo;
             message = fallen == 0
                 ? (carHit ? 'Car at the crossing!' : 'Ran a red light!')
@@ -330,6 +416,7 @@ class DeliveryModel {
                 ? 'Car at the crossing! −$fallen ${parcelWord(fallen)}'
                 : 'Ran a red light! −$fallen ${parcelWord(fallen)}';
           }
+          if (!running) return;
         }
       }
     }
@@ -347,14 +434,17 @@ class DeliveryModel {
     final nearCrossing = crossings.any(
       (crossing) => (crossing.z - 112).abs() < 20,
     );
-    if (_wave >= 2 && !nearCrossing) {
+    final nearGarage = items.any(
+      (item) => item.kind == ItemKind.garage && (item.z - 112).abs() < 32,
+    );
+    if (_wave >= 2 && !nearCrossing && !nearGarage) {
       final blocked = (lane + 1 + _random.nextInt(2)) % 3;
       final kind = (_wave % 7 == 5 || (stageIndex == 2 && _wave % 3 == 0))
           ? ItemKind.bump
           : (_wave % 4 == 3 ? ItemKind.car : ItemKind.cone);
       items.add(RoadItem(kind, lanes[blocked], 112, variant: _wave % 3));
       // The parcel lane always remains clear, even during the rush hour.
-      if (stageIndex >= 2 && _wave % 4 == 0) {
+      if (difficulty > .2 && _wave % 4 == 0) {
         final other = 3 - lane - blocked;
         items.add(RoadItem(ItemKind.cone, lanes[other], 112));
       }
@@ -374,6 +464,10 @@ class DeliveryModel {
   }
 
   void _hit(ItemKind kind) {
+    if (kind == ItemKind.garage) {
+      _repair();
+      return;
+    }
     if (kind == ItemKind.shield || kind == ItemKind.magnet) {
       if (kind == ItemKind.shield) {
         shield = true;
@@ -405,7 +499,7 @@ class DeliveryModel {
     }
     if (shield) {
       shield = false;
-      invulnerability = .85;
+      invulnerability = 1.6;
       message = 'Shield used · stack saved!';
       eventTime = 1.4;
       onEvent?.call(RunEvent.bonus);
@@ -425,17 +519,24 @@ class DeliveryModel {
       return;
     }
     collisions++;
+    integrity--;
     streak = 0;
     final count = _drop(
       kind == ItemKind.car ? math.max(2, (cargo * .4).ceil()) : 2,
     );
-    invulnerability = .85;
+    invulnerability = 1.6;
     shake = 1;
     leanVelocity += 2;
-    message = count == 0
-        ? 'Oops! Watch the road'
-        : 'Oops! −$count ${parcelWord(count)}';
+    message = integrity == 1
+        ? 'Critical damage! Find a garage'
+        : 'Crash! $integrity/3 health · -$count ${parcelWord(count)}';
     eventTime = 1.5;
+    if (integrity == 0) {
+      phase = RunPhase.wrecked;
+      braking = false;
+      velocity = 0;
+      message = 'Scooter broken!';
+    }
     onEvent?.call(RunEvent.crash);
   }
 

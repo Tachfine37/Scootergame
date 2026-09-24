@@ -5,6 +5,7 @@ class GamePreferences {
   GamePreferences(this._prefs) {
     _memoryRecord = _prefs?.getInt('delivery_record_v1') ?? 0;
     _memoryHaptics = _prefs?.getBool('haptics_v1') ?? true;
+    _endlessBest = _prefs?.getInt('endless_best_v1') ?? 0;
     for (var i = 0; i < deliveryStages.length; i++) {
       _stageBests[i] = _prefs?.getInt('stage_best_v2_$i') ?? 0;
     }
@@ -12,6 +13,8 @@ class GamePreferences {
   final SharedPreferences? _prefs;
   int _memoryRecord = 0;
   bool _memoryHaptics = true;
+  int _endlessBest = 0;
+  int get endlessBest => _endlessBest;
   int get record => _memoryRecord;
   bool get haptics => _memoryHaptics;
   final Map<int, int> _stageBests = {};
@@ -46,6 +49,14 @@ class GamePreferences {
     _memoryHaptics = enabled;
     try {
       await _prefs?.setBool('haptics_v1', enabled);
+    } catch (_) {}
+  }
+
+  Future<void> saveEndlessBest(int score) async {
+    if (score <= _endlessBest) return;
+    _endlessBest = score;
+    try {
+      await _prefs?.setInt('endless_best_v1', score);
     } catch (_) {}
   }
 }

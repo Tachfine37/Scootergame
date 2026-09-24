@@ -1,21 +1,20 @@
-# Ça passe ! — Flutter + Flame, 2,5D
+# One More Parcel? — Endless Ride, Flutter + Flame
 
-Un jeu de livraison en quatre quartiers : ramasser des colis, éviter les voitures et les cônes, franchir les ralentisseurs et livrer la plus grande pile possible.
+Un jeu de livraison infini en quatre quartiers, avec interface anglaise : ramasser des colis, garder l'équilibre et préserver son scooter aussi longtemps que possible.
 
 Jouer : https://tachfine37.github.io/Scootergame/
 
 ## Les quartiers
 
-Tous les stages sont accessibles dès le départ. Une première étoile permet de passer directement au quartier suivant ; chaque quartier reste rejouable pour améliorer son record.
+Choisissez votre quartier de départ. Downtown, Seaside, Garden District et Golden Hour s'enchaînent sans interrompre la course, tous les 400 mètres. Le chronomètre ne met plus fin à la partie.
 
-| Quartier | Durée | Objectifs 1 / 2 / 3 étoiles |
-| --- | --- | --- |
-| Centre-ville | 30 s | 5 / 10 / 16 colis |
-| Bord de mer | 35 s | 7 / 13 / 20 colis |
-| Les jardins | 40 s | 9 / 16 / 24 colis |
-| Heure dorée | 45 s | 11 / 19 / 28 colis |
+- Le scooter dispose de 3 points de santé. Une collision avec une voiture, un cône ou un passage au feu rouge retire un point. Une protection de 1,6 seconde empêche les dégâts en chaîne.
+- Les bosses et les pertes d'équilibre font tomber des colis sans endommager le scooter. Rayures, feu arrière cassé et fumée rendent les dégâts visibles ; à zéro santé, le scooter bascule puis le bilan apparaît.
+- Chaque passage de livraison, tous les 400 m, dépose automatiquement la pile : 2 pièces et 25 points par colis livré. Chaque mètre parcouru rapporte aussi un point ; les colis encore à bord à la panne ne rapportent pas de points de livraison.
+- Les garages apparaissent après la première livraison, puis environ tous les 400 m. Entrez dans leur voie pour réparer un point contre 6 pièces. Aucun paiement si le scooter est intact ou si le solde est insuffisant.
+- Le meilleur score infini est sauvegardé séparément des anciens records de stages. La vitesse monte de 22 à 36 et la fréquence des obstacles augmente progressivement sur 2 400 m, puis reste plafonnée.
 
-La vitesse et la densité du trafic augmentent. Chaque vague garde une voie libre et peut contenir plusieurs colis ; les bonus ne remplacent plus les colis. Aux carrefours, un feu initialement vert peut passer à l'orange puis au rouge quand le scooter approche. Les voitures traversent au rouge : maintenir **FREIN** permet de les laisser passer, mais le chronomètre continue. Griller le rouge fait perdre du chargement, même si l'on se faufile entre deux voitures ; le bouclier peut absorber ce choc. Ramasser le bonus bleu **B** protège d'un choc, même sur un ralentisseur. Le bonus rose **A** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Les meilleurs résultats et les étoiles de chaque quartier sont sauvegardés sur l'appareil.
+Chaque vague garde une voie libre et les abords des garages restent dégagés. Aux carrefours, les voitures traversent au rouge : maintenez **BRAKE** pour attendre. Le bonus bleu **SHIELD** absorbe un choc ; le bonus rose **MAGNET** attire les colis des trois voies pendant six secondes. La pause fige aussi les bonus. Freiner ne rapporte ni distance ni points.
 
 Le rendu utilise une projection en perspective, des volumes dessinés sur Canvas, un tri par profondeur, des ombres au sol et des animations de pile. Il ne dépend pas d'un moteur 3D, d'images distantes ou d'assets payants. Le gameplay est piloté par Flame ; les menus et commandes sont des widgets Flutter.
 

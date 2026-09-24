@@ -9,6 +9,136 @@ void advance(DeliveryModel model, double seconds) {
 }
 
 void main() {
+  test(
+    'three separate accidents break the scooter and finish exactly once',
+    () {
+      final model = DeliveryModel()..start();
+      var finishes = 0;
+      model.onEvent = (event) {
+        if (event == RunEvent.finish) finishes++;
+      };
+      for (var hit = 1; hit <= 3; hit++) {
+        model.invulnerability = 0;
+        model.items
+          ..clear()
+          ..add(RoadItem(ItemKind.car, 0, 10.1));
+        model.update(.05);
+        expect(model.integrity, 3 - hit);
+        expect(model.phase, hit == 3 ? RunPhase.wrecked : RunPhase.running);
+      }
+      final distance = model.distance;
+      advance(model, 1.3);
+      expect(model.phase, RunPhase.finished);
+      expect(finishes, 1);
+      advance(model, 10);
+      expect(finishes, 1);
+      expect(model.distance, distance);
+    },
+  );
+
+  test(
+    'crash grace blocks repeat damage; bumps and spills do not damage health',
+    () {
+      final model = DeliveryModel()..start();
+      model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.car, 0, 10.1));
+      model.update(.05);
+      advance(model, 1);
+      model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.car, 0, 10.1));
+      model.update(.05);
+      expect(model.integrity, 2);
+      model.invulnerability = 0;
+      model.cargo = 20;
+      model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.bump, 0, 10.1));
+      model.update(.05);
+      model.steer(.9);
+      advance(model, .5);
+      expect(model.lost, greaterThan(0));
+      expect(model.integrity, 2);
+    },
+  );
+
+  test('delivery banks parcels once and changes district without stopping', () {
+    final model = DeliveryModel()..start(stage: 3);
+    model.distance = 399.9;
+    model.cargo = model.collected = 8;
+    model.items.clear();
+    model.update(.05);
+    expect(model.phase, RunPhase.running);
+    expect(model.stageIndex, 0);
+    expect(model.deliveries, 1);
+    expect(model.delivered, 8);
+    expect(model.cargo, 0);
+    expect(model.coins, 16);
+    expect(model.score, model.distance.floor() + 200);
+    model.update(.05);
+    expect(model.coins, 16);
+    expect(model.deliveries, 1);
+    expect(model.distanceToDelivery, greaterThan(390));
+  });
+
+  test('garage needs the correct lane, damage and sufficient earned coins', () {
+    final model = DeliveryModel()..start();
+    model.integrity = 1;
+    model.coins = 12;
+    model.items
+      ..clear()
+      ..add(RoadItem(ItemKind.garage, .67, 10.1));
+    model.update(.05);
+    expect(model.integrity, 1);
+    expect(model.coins, 12);
+    for (var pass = 0; pass < 3; pass++) {
+      model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.garage, 0, 10.1));
+      model.update(.05);
+    }
+    expect(model.integrity, 3);
+    expect(model.coins, 0);
+    expect(model.repairs, 2);
+    model.integrity = 2;
+    model.coins = 5;
+    model.items
+      ..clear()
+      ..add(RoadItem(ItemKind.garage, 0, 10.1));
+    model.update(.05);
+    expect(model.integrity, 2);
+    expect(model.coins, 5);
+    expect(model.message, 'Garage: need 6 coins');
+  });
+
+  test(
+    'garage spawns visibly with a clear approach after the first delivery',
+    () {
+      final model = DeliveryModel()..start();
+      model.distance = 499;
+      model.update(.05);
+      final garage = model.upcomingGarage!;
+      expect(garage.z, greaterThan(100));
+      for (var tick = 0; tick < 120 * 3; tick++) {
+        model.invulnerability = 2;
+        model.update(1 / 120);
+        expect(
+          model.items.any(
+            (item) =>
+                [
+                  ItemKind.car,
+                  ItemKind.cone,
+                  ItemKind.bump,
+                ].contains(item.kind) &&
+                (item.z - garage.z).abs() < 25,
+          ),
+          false,
+        );
+      }
+    },
+  );
+
   test('shield absorbs exactly one collision and restart clears bonuses', () {
     final model = DeliveryModel()..start(stage: 3);
     model.cargo = 10;
@@ -22,7 +152,7 @@ void main() {
     expect(model.cargo, 10);
     expect(model.shield, false);
     expect(model.collisions, 0);
-    advance(model, 1);
+    advance(model, 1.7);
     model.items
       ..clear()
       ..add(RoadItem(ItemKind.car, 0, 10.1));
@@ -31,7 +161,7 @@ void main() {
     model.magnetTime = 4;
     model.start();
     expect(model.stageIndex, 3);
-    expect(model.remaining, 45);
+    expect(model.integrity, 3);
     expect(model.magnetTime, 0);
   });
 
@@ -62,54 +192,65 @@ void main() {
     expect(model.cargo, cargo);
   });
 
-  test('all stages end on time and every wave keeps the reward lane safe', () {
-    for (var stage = 0; stage < deliveryStages.length; stage++) {
-      final model = DeliveryModel(seed: 19)..start(stage: stage);
-      for (
-        var tick = 0;
-        tick < (deliveryStages[stage].seconds * 120 + 2);
-        tick++
-      ) {
-        model.update(1 / 120);
-        final fresh = model.items.where((item) => item.z > 111).toList();
-        final obstacles = fresh.where(
-          (item) =>
-              [ItemKind.car, ItemKind.cone, ItemKind.bump].contains(item.kind),
-        );
-        final rewards = fresh.where(
-          (item) => [
-            ItemKind.parcel,
-            ItemKind.shield,
-            ItemKind.magnet,
-          ].contains(item.kind),
-        );
-        for (final reward in rewards) {
-          expect(obstacles.any((item) => item.x == reward.x), false);
+  test(
+    'all starting districts run indefinitely and keep reward lanes safe',
+    () {
+      for (var stage = 0; stage < deliveryStages.length; stage++) {
+        final model = DeliveryModel(seed: 19)..start(stage: stage);
+        for (var tick = 0; tick < 120 * 150; tick++) {
+          model.invulnerability = 2;
+          model.update(1 / 120);
+          final fresh = model.items.where((item) => item.z > 111).toList();
+          final obstacles = fresh.where(
+            (item) => [
+              ItemKind.car,
+              ItemKind.cone,
+              ItemKind.bump,
+            ].contains(item.kind),
+          );
+          final rewards = fresh.where(
+            (item) => [
+              ItemKind.parcel,
+              ItemKind.shield,
+              ItemKind.magnet,
+            ].contains(item.kind),
+          );
+          for (final reward in rewards) {
+            expect(obstacles.any((item) => item.x == reward.x), false);
+          }
         }
+        expect(model.phase, RunPhase.running);
+        expect(model.deliveries, greaterThan(4));
+        expect(model.cargo + model.delivered, model.collected - model.lost);
+        expect(model.stageIndex, (stage + model.deliveries) % 4);
+        expect(model.speed, lessThanOrEqualTo(36));
+        expect(model.items.length, lessThan(50));
+        expect(model.crossings.length, lessThan(4));
       }
-      expect(model.phase, RunPhase.finished);
-      expect(model.remaining, 0);
-      expect(model.cargo, model.collected - model.lost);
-      expect(deliveryStages[stage].starsFor(deliveryStages[stage].goal - 1), 0);
-      expect(deliveryStages[stage].starsFor(deliveryStages[stage].goal), 1);
-      expect(
-        deliveryStages[stage].starsFor(deliveryStages[stage].threeStars),
-        3,
-      );
-    }
-  });
+    },
+  );
 
-  test('a run ends after 30 seconds and restart clears all state', () {
+  test('waiting never ends a run and restart clears endless state', () {
     final model = DeliveryModel()..start();
+    model.braking = true;
     advance(model, 30.1);
-    expect(model.phase, RunPhase.finished);
-    expect(model.remaining, 0);
-    expect(model.collected - model.lost, model.cargo);
+    expect(model.phase, RunPhase.running);
+    expect(model.distance, 0);
+    expect(model.score, 0);
+    model.integrity = 1;
+    model.delivered = 12;
+    model.coins = 18;
+    model.repairs = 2;
     model.start();
     expect(model.phase, RunPhase.running);
     expect(model.cargo, 0);
     expect(model.collisions, 0);
-    expect(model.remaining, 30);
+    expect(model.integrity, 3);
+    expect(model.delivered, 0);
+    expect(model.coins, 0);
+    expect(model.repairs, 0);
+    expect(model.braking, false);
+    expect(model.distanceToDelivery, 400);
   });
 
   test('pause freezes world, timer and steering', () {
@@ -149,7 +290,6 @@ void main() {
     expect(model.cargo, 21);
     expect(model.collected, 21);
     expect(model.peakCargo, 21);
-    expect(model.stars, 3);
   });
 
   test('the route offers more than fifteen parcels', () {
@@ -159,8 +299,8 @@ void main() {
       model.invulnerability = 1;
       model.update(1 / 120);
     }
-    expect(model.cargo, greaterThan(20));
-    expect(model.collected, model.cargo);
+    expect(model.collected, greaterThan(20));
+    expect(model.collected, model.cargo + model.delivered);
   });
 
   test('lateral miss does not collect a parcel', () {

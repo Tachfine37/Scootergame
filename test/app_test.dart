@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('stage selection, results and next stage fit a small phone', (
+  testWidgets('endless game over, saved score and restart fit a small phone', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 568);
@@ -27,23 +27,35 @@ void main() {
         .widget<GameWidget<DeliveryGame>>(find.byType(GameWidget<DeliveryGame>))
         .game!;
     expect(game.model.stageIndex, 1);
-    game.model.cargo = 20;
-    game.model.elapsed = game.model.stage.seconds - .01;
-    game.model.update(.05);
+    game.model.distance = 123;
+    game.model.delivered = 8;
+    for (var hit = 0; hit < 3; hit++) {
+      game.model.invulnerability = 0;
+      game.model.items
+        ..clear()
+        ..add(RoadItem(ItemKind.car, 0, 10.1));
+      game.model.update(.05);
+    }
+    expect(game.model.phase, RunPhase.wrecked);
+    for (var tick = 0; tick < 150; tick++) {
+      game.model.update(1 / 120);
+    }
     await tester.pump();
     expect(game.model.phase, RunPhase.finished);
-    expect(find.text('Next route'), findsOneWidget);
-    expect(prefs.stageStars(1), 3);
+    expect(find.text('Ride again'), findsOneWidget);
+    expect(prefs.endlessBest, game.model.score);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Next route'));
+    await tester.tap(find.text('Ride again'));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(game.model.stageIndex, 2);
+    expect(game.model.stageIndex, 1);
     expect(game.model.cargo, 0);
+    expect(game.model.integrity, 3);
+    expect(find.text('HEALTH 3/3'), findsOneWidget);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
-    await tester.tap(find.text('Choose a route'));
+    await tester.tap(find.text('Choose a district'));
     await tester.pump();
-    expect(find.text('Garden District'), findsOneWidget);
+    expect(find.text('Seaside'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -76,9 +88,14 @@ void main() {
     await tester.pump();
     expect(game.model.braking, false);
     game.model.crossings.add(RoadCrossing(50, 0, 2)..age = 1);
+    game.model.cargo = 12;
+    game.model.integrity = 1;
+    game.model.items.add(RoadItem(ItemKind.garage, .67, 65));
     game.hud.value++;
     await tester.pump();
     expect(find.text('RED LIGHT · HOLD BRAKE'), findsOneWidget);
+    expect(find.text('HEALTH 1/3'), findsOneWidget);
+    expect(find.textContaining('GARAGE RIGHT'), findsOneWidget);
     await tester.tap(find.byTooltip('Pause'));
     await tester.pump();
     expect(find.text('Catch your breath?'), findsOneWidget);
@@ -105,5 +122,9 @@ void main() {
     expect(reloaded.stageBest(1), 20);
     expect(reloaded.stageStars(1), 3);
     expect(reloaded.totalStars, 4);
+    await prefs.saveEndlessBest(1234);
+    await prefs.saveEndlessBest(100);
+    expect(GamePreferences(storage).endlessBest, 1234);
+    expect(GamePreferences(storage).record, 18);
   });
 }

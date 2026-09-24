@@ -20,9 +20,9 @@ def main():
     if 'src="flutter_bootstrap.js"' not in index:
         raise SystemExit('Flutter index format changed: bootstrap script missing')
     index = index.replace('src="flutter_bootstrap.js"', f'src="{bootstrap_name}"')
-    index = re.sub(r'<title>.*?</title>', '<title>One More Parcel? · Four Routes</title>', index)
+    index = re.sub(r'<title>.*?</title>', '<title>One More Parcel? · Endless Ride</title>', index)
     index = index.replace('content="A new Flutter project."',
-                          'content="Four routes, one scooter, and a stack of parcels. Can you deliver them all?"')
+                          'content="An endless delivery ride. Balance your parcels, repair your scooter, and beat your best score."')
     (root / 'index.html').write_text(index, encoding='utf-8')
     print(f'Web version: {version}')
 

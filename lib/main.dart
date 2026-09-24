@@ -101,7 +101,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           game.pauseRun();
         } else if (game.model.phase == RunPhase.paused) {
           game.resumeRun();
-        } else {
+        } else if (game.model.phase != RunPhase.wrecked) {
           _start();
         }
       }
@@ -235,7 +235,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                       ),
                     ),
                     Text(
-                      '${model.stageIndex + 1} / 4 · ${model.stage.name.toUpperCase()}',
+                      'ENDLESS · ${model.stage.name.toUpperCase()}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -295,7 +295,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         if (model.running) ...[
           Positioned(
-            top: 272 * scale,
+            top: 320 * scale,
             left: 20 * scale,
             right: 20 * scale,
             child: IgnorePointer(
@@ -314,8 +314,9 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     ),
                     child: Text(
                       model.message,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14 * scale,
+                        fontSize: 12 * scale,
                         fontWeight: FontWeight.w800,
                         color: pine,
                       ),
@@ -370,9 +371,13 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       right: 22 * s,
       child: Row(
         children: [
-          _pill(Icons.map_outlined, game.model.stage.subtitle.toUpperCase(), s),
+          _pill(Icons.all_inclusive_rounded, 'ENDLESS RIDE', s),
           const Spacer(),
-          _pill(Icons.star_rounded, '${widget.preferences.totalStars}/12', s),
+          _pill(
+            Icons.emoji_events_outlined,
+            '${widget.preferences.endlessBest}',
+            s,
+          ),
         ],
       ),
     ),
@@ -396,7 +401,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             ),
             SizedBox(height: 17 * s),
             Text(
-              'Stack them high.\nMake it to the finish.',
+              'Three hits. One scooter.\nHow far can you deliver?',
               style: TextStyle(
                 fontSize: 15 * s,
                 height: 1.4,
@@ -424,7 +429,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${game.model.stage.seconds.toInt()} s · Goal: ${game.model.stage.goal} parcels',
+              'Deliver every 400 m · Repair at garages',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11 * s,
@@ -459,7 +464,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'CHOOSE YOUR ROUTE',
+          'STARTING DISTRICT',
           style: TextStyle(
             fontSize: 10 * s,
             letterSpacing: 1.4,
@@ -506,17 +511,6 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                             fontSize: 14 * s,
                           ),
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${widget.preferences.stageStars(i)}',
-                              style: TextStyle(fontSize: 11 * s),
-                            ),
-                            SizedBox(width: 2 * s),
-                            Icon(Icons.star_rounded, size: 11 * s),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -535,7 +529,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           ),
         ),
         Text(
-          '1 star: ${game.model.stage.goal}  ·  2 stars: ${game.model.stage.twoStars}  ·  3 stars: ${game.model.stage.threeStars}',
+          'Districts change as you ride. No finish line.',
           style: TextStyle(fontSize: 11 * s, color: pine),
         ),
       ],
@@ -567,14 +561,14 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               s,
             ),
             _metric(
-              'TIME LEFT',
-              '${game.model.remaining.ceil()} s',
-              Icons.timer_outlined,
+              'DISTANCE',
+              '${game.model.distance.floor()} m',
+              Icons.route_rounded,
               s,
             ),
             _metric(
-              'BEST',
-              '${game.displayedRecord}',
+              'SCORE',
+              '${game.model.score}',
               Icons.emoji_events_outlined,
               s,
             ),
@@ -583,6 +577,53 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       ),
       SizedBox(height: 10 * s),
       Container(
+        padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 7 * s),
+        decoration: BoxDecoration(
+          color: game.model.integrity == 1 ? const Color(0xff803d36) : pine,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.two_wheeler_rounded, color: cream, size: 20 * s),
+            SizedBox(width: 7 * s),
+            Text(
+              'HEALTH ${game.model.integrity}/3',
+              style: TextStyle(
+                color: cream,
+                fontSize: 10 * s,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(width: 7 * s),
+            ...List.generate(
+              3,
+              (i) => Padding(
+                padding: EdgeInsets.only(right: 3 * s),
+                child: Icon(
+                  Icons.shield_rounded,
+                  size: 14 * s,
+                  color: i < game.model.integrity
+                      ? const Color(0xfff8c66b)
+                      : cream.withValues(alpha: .2),
+                ),
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              Icons.monetization_on_rounded,
+              color: const Color(0xfff8c66b),
+              size: 16 * s,
+            ),
+            SizedBox(width: 4 * s),
+            Text(
+              '${game.model.coins}',
+              style: TextStyle(color: cream, fontSize: 12 * s),
+            ),
+          ],
+        ),
+      ),
+      SizedBox(height: 6 * s),
+      Container(
         padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 5 * s),
         decoration: BoxDecoration(
           color: cream.withValues(alpha: .9),
@@ -590,17 +631,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         ),
         child: Row(
           children: [
-            Icon(
-              game.model.goalReached
-                  ? Icons.check_circle_rounded
-                  : Icons.flag_rounded,
-              size: 16 * s,
-              color: pine,
-            ),
+            Icon(Icons.local_shipping_rounded, size: 16 * s, color: pine),
             SizedBox(width: 6 * s),
             Expanded(
               child: Text(
-                'Goal ${game.model.cargo}/${game.model.stage.goal} parcels',
+                'Delivery in ${game.model.distanceToDelivery.ceil()} m',
                 style: TextStyle(
                   fontSize: 12 * s,
                   color: pine,
@@ -609,7 +644,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ),
             ),
             Text(
-              '${game.model.streak} in a row',
+              '${game.model.delivered} delivered',
               style: TextStyle(fontSize: 11 * s, color: pine),
             ),
           ],
@@ -652,6 +687,23 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       if (game.model.upcomingCrossing != null &&
           game.model.upcomingCrossing!.z < 100)
         _trafficStatus(game.model.upcomingCrossing!, s),
+      if (game.model.upcomingGarage case final garage?)
+        Container(
+          margin: EdgeInsets.only(top: 6 * s),
+          padding: EdgeInsets.all(7 * s),
+          decoration: BoxDecoration(
+            color: pine,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'GARAGE ${garage.x < 0 ? "LEFT" : "RIGHT"} · ${(garage.z - DeliveryModel.playerZ).ceil()} m · 6 coins',
+            style: TextStyle(
+              color: cream,
+              fontSize: 11 * s,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
     ],
   );
 
@@ -693,45 +745,48 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     );
   }
 
-  Widget _metric(String title, String value, IconData icon, double s) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: TextStyle(
-          fontSize: 9 * s,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w700,
-          color: pine.withValues(alpha: .6),
-        ),
-      ),
-      SizedBox(height: 4 * s),
-      Row(
-        children: [
-          Icon(icon, size: 17 * s, color: coral),
-          SizedBox(width: 6 * s),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 25 * s,
-              height: 1.1,
-              fontWeight: FontWeight.w900,
-              color: pine,
+  Widget _metric(String title, String value, IconData icon, double s) =>
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 9 * s,
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w700,
+                color: pine.withValues(alpha: .6),
+              ),
             ),
-          ),
-        ],
-      ),
-    ],
-  );
+            SizedBox(height: 4 * s),
+            Row(
+              children: [
+                Icon(icon, size: 17 * s, color: coral),
+                SizedBox(width: 6 * s),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 25 * s,
+                        height: 1.1,
+                        fontWeight: FontWeight.w900,
+                        color: pine,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
 
   Widget _modal(double s, {required bool paused}) {
     final model = game.model;
-    final newRecord = model.cargo > game.recordAtStart;
-    final stars = model.stars;
-    final nextStage =
-        !paused &&
-        model.goalReached &&
-        model.stageIndex < deliveryStages.length - 1;
+    final newRecord = model.score > game.recordAtStart;
     return Positioned.fill(
       child: Container(
         color: pine.withValues(alpha: .35),
@@ -754,7 +809,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                paused ? Icons.local_cafe_rounded : Icons.task_alt_rounded,
+                paused ? Icons.local_cafe_rounded : Icons.build_rounded,
                 size: 40 * s,
                 color: coral,
               ),
@@ -764,7 +819,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     ? 'QUICK BREAK'
                     : newRecord
                     ? 'NEW BEST'
-                    : 'RUN COMPLETE',
+                    : 'SCOOTER BROKEN',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 10 * s,
@@ -775,9 +830,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ),
               SizedBox(height: 9 * s),
               Text(
-                paused
-                    ? 'Catch your breath?'
-                    : '${model.cargo} ${parcelWord(model.cargo)}\ndelivered!',
+                paused ? 'Catch your breath?' : '${model.score}\npoints',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 39 * s,
@@ -788,32 +841,11 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 ),
               ),
               SizedBox(height: 13 * s),
-              if (!paused)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    3,
-                    (index) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: Icon(
-                        index < stars
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        color: index < stars
-                            ? const Color(0xffdd9b37)
-                            : const Color(0xffc4c6aa),
-                        size: 31 * s,
-                      ),
-                    ),
-                  ),
-                ),
               SizedBox(height: 10 * s),
               Text(
                 paused
-                    ? 'Your stack is safe.'
-                    : model.goalReached
-                    ? '${model.stage.name}: delivery complete!'
-                    : '${model.stage.goal - model.cargo} more ${parcelWord(model.stage.goal - model.cargo)} for the first star.',
+                    ? 'Deliveries earn coins. Drive into a garage lane to repair for 6 coins.'
+                    : 'Your scooter broke down after ${model.collisions} accidents.\n${model.distance.floor()} m ridden · ${model.repairs} repairs',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13 * s,
@@ -826,7 +858,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _resultStat('Picked up', model.collected, s),
+                    _resultStat('Delivered', model.delivered, s),
                     _resultStat('Dropped', model.lost, s),
                     _resultStat('Best', game.displayedRecord, s),
                   ],
@@ -834,22 +866,13 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ],
               SizedBox(height: 24 * s),
               _primaryButton(
-                paused
-                    ? 'Resume'
-                    : nextStage
-                    ? 'Next route'
-                    : 'Ride again',
-                paused
-                    ? Icons.play_arrow_rounded
-                    : nextStage
-                    ? Icons.arrow_forward_rounded
-                    : Icons.replay_rounded,
+                paused ? 'Resume' : 'Ride again',
+                paused ? Icons.play_arrow_rounded : Icons.replay_rounded,
                 () {
                   if (paused) {
                     game.resumeRun();
                     _focus.requestFocus();
                   } else {
-                    if (nextStage) game.selectStage(model.stageIndex + 1);
                     _start();
                   }
                 },
@@ -863,17 +886,12 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                     child: const Text('Restart this run'),
                   ),
                 ),
-              if (!paused && nextStage)
-                TextButton(
-                  onPressed: _start,
-                  child: const Text('Replay for 3 stars'),
-                ),
               TextButton(
                 onPressed: () {
                   _left = _right = false;
-                  game.selectStage(model.stageIndex);
+                  game.selectStage(game.startingStage);
                 },
-                child: const Text('Choose a route'),
+                child: const Text('Choose a district'),
               ),
             ],
           ),
