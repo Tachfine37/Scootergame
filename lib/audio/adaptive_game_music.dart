@@ -218,6 +218,8 @@ class AdaptiveGameMusic extends GameMusic {
     return _enqueue(() async {
       if (_music) {
         if (_loaded) {
+          // A pause may interrupt a crossfade before its volume reaches 100%.
+          await _tracks[_current].setVolume(_gain);
           await _tracks[_current].resume();
         } else {
           await _startTrack();
