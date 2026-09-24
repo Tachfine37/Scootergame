@@ -218,29 +218,37 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                 ),
               ),
               SizedBox(width: 10 * scale),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ONE MORE PARCEL?',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20 * scale,
-                      letterSpacing: -.8,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'ONE MORE PARCEL?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20 * scale,
+                          letterSpacing: -.8,
+                        ),
+                      ),
                     ),
-                  ),
-                  Text(
-                    '${model.stageIndex + 1} / 4 · ${model.stage.name.toUpperCase()}',
-                    style: TextStyle(
-                      fontSize: 9 * scale,
-                      letterSpacing: 1.7,
-                      fontWeight: FontWeight.w700,
-                      color: pine.withValues(alpha: .65),
+                    Text(
+                      '${model.stageIndex + 1} / 4 · ${model.stage.name.toUpperCase()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9 * scale,
+                        letterSpacing: 1.7,
+                        fontWeight: FontWeight.w700,
+                        color: pine.withValues(alpha: .65),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              SizedBox(width: 8 * scale),
               if (!ready && model.phase != RunPhase.finished)
                 _iconButton(
                   model.phase == RunPhase.paused

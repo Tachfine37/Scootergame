@@ -247,7 +247,7 @@ void main() {
     expect(empty.lost, 0);
     expect(loaded.lost, 2);
     expect(loaded.cargo, 18);
-    expect(loaded.message, contains('Virage trop brusque'));
+    expect(loaded.message, contains('Turned too sharply'));
     expect(loaded.balanceGrace, greaterThan(0));
   });
 
